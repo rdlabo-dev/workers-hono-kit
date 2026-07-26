@@ -76,6 +76,14 @@ export { defaultDefer, createWaitUntilDefer } from './http/defer.js';
 export type { DeferExecutor } from './http/defer.js';
 export { createSentryErrorReporter } from './http/http-error.js';
 export type { SentryExceptionReporterLike } from './http/http-error.js';
+export {
+  AUTH_FAILURE_SCOPES,
+  AUTH_IDENTITY_INVALID_CODE,
+  createAuthFailureBody,
+  createIdentityAuthFailureBody,
+  createLegacyIdentityAuthFailureBody,
+} from './http/auth-failure.js';
+export type { AuthFailureBody, AuthFailureScope } from './http/auth-failure.js';
 
 // idempotency
 export {
