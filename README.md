@@ -79,6 +79,7 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `normalizeTrailingSlash(request)` | Strip trailing slash(es) from the request URL before routing (Express/Nest parity). Does **not** 301-redirect — preserves POST/PUT/DELETE bodies. |
 | `HTTP_ERROR_PHRASES` | `{ 400, 401, 403, 404 }` → standard `error` field phrases. |
 | `createAuthMiddleware(options)` / `AuthMiddlewareOptions` | Factory for a Firebase-token auth middleware: reads the token header, verifies, resolves the DB user id, and stashes the result on the context. Omit `resolveUserId` for a token-only (login) guard. |
+| `createIdentityAuthFailureBody()` / `createAuthFailureBody(scope, code, message)` / `AuthFailureScope` | Stable `401` wire contract for distinguishing a lost global identity (`identity`) from recent-login (`reauthentication`) and feature credential (`credential`) failures. |
 | `perfLog(options?)` / `PerfLogOptions` / `AnalyticsEngineDatasetLike` | Middleware that records one per-request latency data point (`t_app`, colo, cold/warm, route, status) and emits it to **Workers Logs** (`console.log`) and/or **Workers Analytics Engine** (`writeDataPoint`). Lets you measure low-traffic Workers without a live `wrangler tail`. |
 | `createMaintenanceMiddleware(options)` / `createMaintenanceWaitHandler(options)` / `isMaintenanceEnabled(env)` / `MAINTENANCE_CODE` / `MAINTENANCE_WAIT_PATH` | Fleet maintenance short-circuit: when enabled (`MAINTENANCE=1`), every non-allowlisted request returns `503` + `{ statusCode, message, code: 'MAINTENANCE' }` **before** container/DB. Pair with `GET /public/maintenance/wait` SSE (`event: ping` / `event: ended`) so clients can auto-dismiss a lock UI. Mount after `cors`, before `containerMiddleware`. |
 | `ErrorReporter` / `ErrorReportContext` | Types for a `reportError`-style unhandled-error reporter (e.g. wired to Sentry), paired with `createHttpErrorHandler`'s `onUnhandledError`. |
@@ -461,7 +462,7 @@ verify/resolver, context-variable names, and failure mode.
 `setContext` is type-checked against your `Variables`.
 
 ```ts
-import { createAuthMiddleware } from '@rdlabo/workers-hono-kit';
+import { createAuthMiddleware, createIdentityAuthFailureBody } from '@rdlabo/workers-hono-kit';
 
 // AuthGuard: verify + resolve (and provision) the DB user id.
 const userAuth = createAuthMiddleware<AppEnv, UserRecord, number>({
@@ -479,9 +480,15 @@ const userAuth = createAuthMiddleware<AppEnv, UserRecord, number>({
 const tokenAuth = createAuthMiddleware<AppEnv, UserRecord>({
   verify: (token) => container.firebase.verifyIdToken(token),
   setContext: (c, { verified }) => c.set('userRecord', verified),
-  onFailure: (_e, c) => c.json({ message: 'Unauthorized', statusCode: 401 }, 401),
+  onFailure: (_e, c) => c.json(createIdentityAuthFailureBody(), 401),
 });
 ```
+
+Authentication failures use three explicit scopes. Only `identity` permits a client to purge its
+global authenticated session, offline replica boundary, and outbox. `reauthentication` means the
+identity remains valid but a recent sign-in is required; `credential` belongs to a domain feature
+such as a public booking token. A `403` is an authenticated permission/business denial and must not
+be used as a global-session invalidation signal. Domain-specific `code` values remain product-owned.
 
 ### Latency instrumentation (`perfLog`)
 
