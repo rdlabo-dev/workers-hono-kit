@@ -4,6 +4,7 @@ import {
   AUTH_IDENTITY_INVALID_CODE,
   createAuthFailureBody,
   createIdentityAuthFailureBody,
+  createLegacyIdentityAuthFailureBody,
 } from './auth-failure.js';
 
 describe('auth failure protocol', () => {
@@ -22,6 +23,15 @@ describe('auth failure protocol', () => {
       message: 'Session expired',
       code: 'PUBLIC_BOOKING_SESSION_INVALID',
       authFailureScope: 'credential',
+    });
+  });
+
+  it('tags a historical 403 without changing its deployed status contract', () => {
+    expect(createLegacyIdentityAuthFailureBody()).toEqual({
+      statusCode: 403,
+      message: 'Forbidden resource',
+      code: AUTH_IDENTITY_INVALID_CODE,
+      authFailureScope: AUTH_FAILURE_SCOPES.identity,
     });
   });
 });

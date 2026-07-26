@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
+import { createIdentityAuthFailureBody } from '../http/auth-failure.js';
 import { createHttpErrorHandler } from '../http/http-error.js';
 import { createAuthMiddleware } from './auth.js';
 import type { AuthMiddlewareOptions } from './auth.js';
@@ -77,6 +78,25 @@ describe('createAuthMiddleware', () => {
     }).request('/guarded', { headers: goodHeaders });
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ statusCode: 403, message: 'Forbidden resource', error: 'Forbidden' });
+  });
+
+  it.each([
+    ['verify', { headers: { 'x-amz-security-token': 'bad' } }],
+    ['resolveUserId', { headers: goodHeaders }],
+  ])('%s 失敗を明示設定どおり identity 401 契約へ接続する', async (failure, init) => {
+    const res = await appWith({
+      ...baseOptions,
+      resolveUserId:
+        failure === 'resolveUserId'
+          ? async () => {
+              throw new Error('user resolution failed');
+            }
+          : baseOptions.resolveUserId,
+      onFailure: (_error, context) => context.json(createIdentityAuthFailureBody(), 401),
+    }).request('/guarded', init);
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual(createIdentityAuthFailureBody());
   });
 
   it('resolveUserId は検証済み record と appInfo を受け取る', async () => {

@@ -81,6 +81,7 @@ export {
   AUTH_IDENTITY_INVALID_CODE,
   createAuthFailureBody,
   createIdentityAuthFailureBody,
+  createLegacyIdentityAuthFailureBody,
 } from './http/auth-failure.js';
 export type { AuthFailureBody, AuthFailureScope } from './http/auth-failure.js';
 

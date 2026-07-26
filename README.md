@@ -79,7 +79,7 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `normalizeTrailingSlash(request)` | Strip trailing slash(es) from the request URL before routing (Express/Nest parity). Does **not** 301-redirect — preserves POST/PUT/DELETE bodies. |
 | `HTTP_ERROR_PHRASES` | `{ 400, 401, 403, 404 }` → standard `error` field phrases. |
 | `createAuthMiddleware(options)` / `AuthMiddlewareOptions` | Factory for a Firebase-token auth middleware: reads the token header, verifies, resolves the DB user id, and stashes the result on the context. Omit `resolveUserId` for a token-only (login) guard. |
-| `createIdentityAuthFailureBody()` / `createAuthFailureBody(scope, code, message)` / `AuthFailureScope` | Stable `401` wire contract for distinguishing a lost global identity (`identity`) from recent-login (`reauthentication`) and feature credential (`credential`) failures. |
+| `createIdentityAuthFailureBody()` / `createLegacyIdentityAuthFailureBody()` / `createAuthFailureBody(scope, code, message)` / `AuthFailureScope` | Stable wire contract for distinguishing a lost global identity (`identity`) from recent-login (`reauthentication`) and feature credential (`credential`) failures. The legacy helper tags products whose installed clients still require auth failure as `403`. |
 | `perfLog(options?)` / `PerfLogOptions` / `AnalyticsEngineDatasetLike` | Middleware that records one per-request latency data point (`t_app`, colo, cold/warm, route, status) and emits it to **Workers Logs** (`console.log`) and/or **Workers Analytics Engine** (`writeDataPoint`). Lets you measure low-traffic Workers without a live `wrangler tail`. |
 | `createMaintenanceMiddleware(options)` / `createMaintenanceWaitHandler(options)` / `isMaintenanceEnabled(env)` / `MAINTENANCE_CODE` / `MAINTENANCE_WAIT_PATH` | Fleet maintenance short-circuit: when enabled (`MAINTENANCE=1`), every non-allowlisted request returns `503` + `{ statusCode, message, code: 'MAINTENANCE' }` **before** container/DB. Pair with `GET /public/maintenance/wait` SSE (`event: ping` / `event: ended`) so clients can auto-dismiss a lock UI. Mount after `cors`, before `containerMiddleware`. |
 | `ErrorReporter` / `ErrorReportContext` | Types for a `reportError`-style unhandled-error reporter (e.g. wired to Sentry), paired with `createHttpErrorHandler`'s `onUnhandledError`. |
@@ -474,6 +474,8 @@ const userAuth = createAuthMiddleware<AppEnv, UserRecord, number>({
     c.set('userId', userId);
     c.set('appInfo', appInfo);
   },
+  onFailure: (_error, context) =>
+    context.json(createIdentityAuthFailureBody(), 401),
 });
 
 // TokenGuard (login): verify only — omit resolveUserId. Override the failure if needed.
@@ -487,8 +489,12 @@ const tokenAuth = createAuthMiddleware<AppEnv, UserRecord>({
 Authentication failures use three explicit scopes. Only `identity` permits a client to purge its
 global authenticated session, offline replica boundary, and outbox. `reauthentication` means the
 identity remains valid but a recent sign-in is required; `credential` belongs to a domain feature
-such as a public booking token. A `403` is an authenticated permission/business denial and must not
-be used as a global-session invalidation signal. Domain-specific `code` values remain product-owned.
+such as a public booking token. New APIs use `401`; products with installed clients that historically
+interpret auth failure as `403` use `createLegacyIdentityAuthFailureBody()` until that compatibility
+contract can be retired. An untagged `403` is an authenticated permission/business denial and must
+not be used as a global-session invalidation signal. Domain-specific `code` values remain product-owned.
+`createAuthMiddleware` retains its historical untagged `403` default for source/runtime compatibility;
+the tagged identity contract is an explicit `onFailure` opt-in as shown above.
 
 ### Latency instrumentation (`perfLog`)
 
