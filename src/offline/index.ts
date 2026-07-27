@@ -10,6 +10,6 @@
 export { fromTinyIntFlag, replicaTimestampMs, toReplicaDateOnly, toReplicaIsoDatetime, toTinyIntFlag } from './wire.js';
 export { replicaNowIso } from './clock.js';
 export { defineRestDbMethodConverter } from './rest-db-method-converter.js';
-export type { RestDbMethodConverter } from './rest-db-method-converter.js';
+export type { CompleteRestDbTableScheme, RestDbMethodConverter } from './rest-db-method-converter.js';
 export { decodeOfflineSnapshotCursor, encodeOfflineSnapshotCursor } from './snapshot-cursor.js';
 export type { OfflineSnapshotCursor } from './snapshot-cursor.js';

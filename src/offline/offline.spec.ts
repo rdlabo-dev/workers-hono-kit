@@ -49,6 +49,10 @@ interface ExampleCreateFoodTableScheme {
   foods: Omit<ExampleFoodInsert, 'id'>[];
 }
 
+interface ExampleCreateFoodInsertScheme {
+  foods: (Omit<ExampleFoodInsert, 'id'> & { ownerId: number })[];
+}
+
 describe('offline replica wire helpers', () => {
   it('normalizes datetime instants to canonical UTC ISO strings', () => {
     expect(toReplicaIsoDatetime('2026-07-23T19:00:00+09:00')).toBe('2026-07-23T10:00:00.000Z');
@@ -177,6 +181,24 @@ describe('REST DB method converter', () => {
   it('omits an AUTO_INCREMENT id only when the product method scheme excludes it explicitly', () => {
     expect(createConverter.toTableScheme({ groupId: 7, name: 'Wine', memo: null })).toEqual({
       foods: [{ groupId: 7, name: 'Wine', memo: null }],
+    });
+  });
+
+  it('supports distinct select and insert bundles with an explicit write context', () => {
+    const contextualConverter = defineRestDbMethodConverter<
+      ExampleCreateFoodMethodScheme,
+      ExampleCreateFoodTableScheme,
+      ExampleCreateFoodInsertScheme,
+      { readonly groupId: number }
+    >({
+      toMethodScheme: ({ foods }) => foods[0],
+      toTableScheme: (method, context) => ({
+        foods: [{ groupId: method.groupId, ownerId: context.groupId, name: method.name, memo: method.memo }],
+      }),
+    });
+
+    expect(contextualConverter.toTableScheme({ groupId: 7, name: 'Wine', memo: null }, { groupId: 7 })).toEqual({
+      foods: [{ groupId: 7, ownerId: 7, name: 'Wine', memo: null }],
     });
   });
 });
