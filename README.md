@@ -210,7 +210,8 @@ client-generated UUID in `local_id` and keep `server_id` null until the server c
 | Export | Description |
 | --- | --- |
 | `defineRestDbMethodConverter(converter)` | Type a product-owned, pure `MethodScheme ↔ TableScheme` converter without hiding HTTP or persistence side effects. |
-| `RestDbMethodConverter` | Product-owned converter contract. Its table scheme requires every represented table and column, including optional nullable/default keys from `$inferInsert`. |
+| `RestDbMethodConverter` | Product-owned converter contract. Select and insert bundles may differ; every represented table and column remains required. |
+| `CompleteRestDbTableScheme` | Compile-time lock requiring every represented table key and row column. |
 | `toReplicaIsoDatetime(value)` | `Date` / datetime string → canonical UTC ISO-8601 wire value. |
 | `toReplicaDateOnly(value)` | `Date` / date string / `null` → canonical `YYYY-MM-DD` / `null`. |
 | `replicaTimestampMs(value)` | Replica datetime → epoch milliseconds for legacy DTOs. |
@@ -254,6 +255,20 @@ type CreateTables = {
 
 The converter then cannot demand or manufacture `id`; the server adds the generated id to the
 confirmed response before it is stored as `server_id`.
+
+When a write needs authenticated ownership or scope that is intentionally absent from the public
+REST body, use separate select/insert bundles and an explicit write context. The original
+two-generic form remains valid.
+
+```ts
+defineRestDbMethodConverter<Method, SelectTables, InsertTables, { userId: number }>({
+  toMethodScheme: ({ foods, allergens }) => composeFood(foods, allergens),
+  toTableScheme: (method, { userId }) => ({
+    foods: [{ userId, name: method.name, memo: method.memo ?? null }],
+    allergens: method.allergens.map((value) => ({ value })),
+  }),
+});
+```
 
 ```ts
 replicaNowIso(() => new Date('2026-07-23T10:00:00Z')); // '2026-07-23T10:00:00.000Z'
