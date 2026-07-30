@@ -120,4 +120,48 @@ describe('perfLog', () => {
     expect(ds.points[0].indexes).toEqual(['(unmatched)']);
     expect(ds.points[0].doubles?.[2]).toBe(404);
   });
+
+  it('96 bytes を超える route は blob に保持しつつ短い安定 index で記録する', async () => {
+    const ds = fakeDataset();
+    const app = new Hono();
+    const route =
+      '/seatkeep/organizations/:organizationId/venues/:venueId/continuity-entries/:continuityEntryId/reconciliation';
+    app.use('*', perfLog({ dataset: ds }));
+    app.post(route, (c) => c.json({ ok: true }));
+
+    const path =
+      '/seatkeep/organizations/019fb256-fbb3-76ee-a8ef-e6f255c877d5/venues/019fb257-b2ec-762e-8f01-c7d199898111/continuity-entries/019fb25b-64af-751e-b436-f41aa4349e85/reconciliation';
+    const first = await app.request(req(path), { method: 'POST' });
+    const second = await app.request(req(path), { method: 'POST' });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(ds.points).toHaveLength(2);
+    expect(ds.points[0].blobs?.[0]).toBe(route);
+    expect(ds.points[0].indexes?.[0]).toMatch(/^route:[0-9a-f]{16}$/u);
+    expect(new TextEncoder().encode(ds.points[0].indexes?.[0]).byteLength).toBeLessThanOrEqual(96);
+    expect(ds.points[1].indexes).toEqual(ds.points[0].indexes);
+  });
+
+  it('Analytics Engine の同期例外をアプリ応答へ波及させない', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const app = new Hono();
+    app.use(
+      '*',
+      perfLog({
+        dataset: {
+          writeDataPoint: () => {
+            throw new TypeError('index exceeds 96 bytes');
+          },
+        },
+      }),
+    );
+    app.get('/healthy', (c) => c.json({ ok: true }));
+
+    const response = await app.request(req('/healthy'));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(warning).toHaveBeenCalledOnce();
+  });
 });

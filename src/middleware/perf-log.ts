@@ -29,6 +29,8 @@ export interface PerfLogOptions {
    * When provided, write one data point per request to a **Workers Analytics Engine** dataset. Query
    * percentiles by route/colo with the SQL API (≈90-day retention). Non-blocking. Layout:
    * `doubles = [t_app_ms, cold(0|1), status]`, `blobs = [path, colo, method]`, `indexes = [path]`.
+   * Route patterns longer than Analytics Engine's 96-byte index limit use a stable hash as the index;
+   * the complete route remains available in `blob1`.
    */
   dataset?: AnalyticsEngineDatasetLike;
   /**
@@ -59,6 +61,23 @@ export interface PerfLogOptions {
 // a cold start are labelled warm (only the very first flips the flag) even though they pay cold-init
 // waits — a minor warm-side contamination, negligible at the low request rates this targets.
 let isolateWarm = false;
+
+const ANALYTICS_INDEX_MAX_BYTES = 96;
+
+function analyticsIndex(path: string): string {
+  const bytes = new TextEncoder().encode(path);
+  if (bytes.byteLength <= ANALYTICS_INDEX_MAX_BYTES) {
+    return path;
+  }
+
+  // FNV-1a 64-bit keeps sampling deterministic without adding async crypto work to every response.
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of bytes) {
+    hash ^= BigInt(byte);
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return `route:${hash.toString(16).padStart(16, '0')}`;
+}
 
 /**
  * Create a Hono middleware that records a per-request latency data point and emits it to Workers
@@ -131,11 +150,16 @@ export function perfLog(options: PerfLogOptions = {}): MiddlewareHandler {
     // In-code sampling thins Analytics Engine writes only; Workers Logs volume is controlled separately
     // by the observability `head_sampling_rate`. Low-traffic Workers should leave `sampleRate` at 1.
     if (sink && (rate >= 1 || Math.random() < rate)) {
-      sink.writeDataPoint({
-        doubles: [tApp, cold ? 1 : 0, status],
-        blobs: [path, colo, method],
-        indexes: [path],
-      });
+      try {
+        sink.writeDataPoint({
+          doubles: [tApp, cold ? 1 : 0, status],
+          blobs: [path, colo, method],
+          indexes: [analyticsIndex(path)],
+        });
+      } catch (error) {
+        // Telemetry must never replace an otherwise successful application response with a 500.
+        console.warn('[perfLog] Analytics Engine write failed', error);
+      }
     }
 
     if (emitConsole) {
