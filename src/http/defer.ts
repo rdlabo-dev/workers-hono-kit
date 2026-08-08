@@ -10,12 +10,16 @@ import type { ExecutionContextLike } from './execution-context.js';
  */
 export type DeferExecutor = (promise: Promise<unknown>) => void;
 
+const reportDeferFailure = (error: unknown): void => {
+  console.error('[defer] background task failed', error);
+};
+
 /**
- * Default defer implementation (NestJS `void promise` equivalent). Swallows rejections.
- * Used when no `ExecutionContext` is available (tests, partial scheduled paths).
+ * Default defer implementation (NestJS `void promise` equivalent). Reports rejections without
+ * propagating them. Used when no `ExecutionContext` is available (tests, partial scheduled paths).
  */
 export const defaultDefer: DeferExecutor = (promise) => {
-  void promise.catch(() => undefined);
+  void promise.catch(reportDeferFailure);
 };
 
 /**
@@ -25,6 +29,6 @@ export const defaultDefer: DeferExecutor = (promise) => {
  */
 export function createWaitUntilDefer(ctx: ExecutionContextLike): DeferExecutor {
   return (promise) => {
-    ctx.waitUntil(promise.catch(() => undefined));
+    ctx.waitUntil(promise.catch(reportDeferFailure));
   };
 }
