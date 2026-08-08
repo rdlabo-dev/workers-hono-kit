@@ -139,7 +139,7 @@ export type { ParseRealtimeWebSocketProtocolOptions, RealtimeWebSocketProtocolOf
 
 // cache
 export { KVCache } from './cache/kv-cache.js';
-export type { KVNamespace, KVCacheOptions } from './cache/kv-cache.js';
+export type { KVNamespace, KVCacheErrorContext, KVCacheOperation, KVCacheOptions } from './cache/kv-cache.js';
 
 // stripe
 export { createStripeClient, verifyStripeWebhook } from './stripe/client.js';

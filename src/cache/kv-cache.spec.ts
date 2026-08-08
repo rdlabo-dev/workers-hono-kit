@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { KVCache } from './kv-cache.js';
-import type { KVNamespace } from './kv-cache.js';
+import type { KVCacheErrorContext, KVNamespace } from './kv-cache.js';
 
 class FakeKV implements KVNamespace {
   store = new Map<string, string>();
@@ -16,6 +16,33 @@ class FakeKV implements KVNamespace {
   async delete(key: string): Promise<void> {
     this.store.delete(key);
     this.deletes.push(key);
+  }
+}
+
+class FailingKV extends FakeKV {
+  getError?: Error;
+  putError?: Error;
+  deleteError?: Error;
+
+  override async get(key: string): Promise<string | null> {
+    if (this.getError) {
+      throw this.getError;
+    }
+    return super.get(key);
+  }
+
+  override async put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> {
+    if (this.putError) {
+      throw this.putError;
+    }
+    return super.put(key, value, options);
+  }
+
+  override async delete(key: string): Promise<void> {
+    if (this.deleteError) {
+      throw this.deleteError;
+    }
+    return super.delete(key);
   }
 }
 
@@ -100,5 +127,93 @@ describe('KVCache', () => {
     await cache.set(huge, 'x', 1, { a: 1 });
     expect(kv.puts).toHaveLength(0);
     expect(await cache.get(huge, 'x', 1)).toBeUndefined();
+  });
+
+  it.each([
+    ['read', 'getError'],
+    ['write', 'putError'],
+    ['delete', 'deleteError'],
+  ] as const)('reports a %s failure with limited cache context', async (operation, errorField) => {
+    const kv = new FailingKV();
+    const error = new Error(`${operation} failed`);
+    kv[errorField] = error;
+    const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
+    const cache = new KVCache(kv, { appName: 'secret-app', onError });
+
+    if (operation === 'read') {
+      await expect(cache.get('users', 'private-email', 'user@example.com')).resolves.toBeUndefined();
+    }
+    if (operation === 'write') {
+      await expect(cache.set('users', 'private-email', 'user@example.com', { secret: 1 })).resolves.toBeUndefined();
+    }
+    if (operation === 'delete') {
+      await expect(cache.delete('users', 'private-email', 'user@example.com')).resolves.toBeUndefined();
+    }
+
+    expect(onError).toHaveBeenCalledWith(error, { operation, table: 'users' });
+    const context = onError.mock.calls[0][1];
+    expect(context).toEqual({ operation, table: 'users' });
+    expect(context).not.toHaveProperty('id');
+    expect(context).not.toHaveProperty('type');
+    expect(context).not.toHaveProperty('key');
+    expect(context).not.toHaveProperty('value');
+  });
+
+  it('reports parse and serialization failures separately', async () => {
+    const kv = new FakeKV();
+    kv.store.set('testv8_users_byId_1', '{broken');
+    const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
+    const cache = new KVCache(kv, { appName: 'test', onError });
+
+    await expect(cache.get('users', 'byId', 1)).resolves.toBeUndefined();
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    await expect(cache.set('users', 'byId', 1, circular)).resolves.toBeUndefined();
+
+    expect(onError.mock.calls.map(([, context]) => context)).toEqual([
+      { operation: 'parse', table: 'users' },
+      { operation: 'serialize', table: 'users' },
+    ]);
+  });
+
+  it('reports JSON values that serialize to undefined without writing them', async () => {
+    const kv = new FakeKV();
+    const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
+    const cache = new KVCache(kv, { appName: 'test', onError });
+
+    await expect(cache.set('users', 'byId', 1, () => undefined)).resolves.toBeUndefined();
+
+    expect(kv.puts).toHaveLength(0);
+    expect(onError).toHaveBeenCalledWith(expect.any(TypeError), { operation: 'serialize', table: 'users' });
+  });
+
+  it('does not report misses, falsy values, or oversized keys', async () => {
+    const kv = new FakeKV();
+    const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
+    const cache = new KVCache(kv, { appName: 'test', onError });
+    const huge = 'x'.repeat(2000);
+
+    await cache.get('users', 'byId', 1);
+    await cache.set('users', 'byId', 1, null);
+    await cache.set(huge, 'byId', 1, { value: true });
+    await cache.delete(huge, 'byId', 1);
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('isolates and exposes reporter failures without breaking cache callers', async () => {
+    const kv = new FailingKV();
+    kv.getError = new Error('KV unavailable');
+    const reporterError = new Error('reporter unavailable');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const cache = new KVCache(kv, {
+      appName: 'test',
+      onError: () => {
+        throw reporterError;
+      },
+    });
+
+    await expect(cache.get('users', 'byId', 1)).resolves.toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith('[KVCache] error reporter failed', reporterError);
   });
 });

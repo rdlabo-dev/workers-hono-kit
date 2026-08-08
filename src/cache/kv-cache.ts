@@ -4,7 +4,9 @@
  * Provides a thin, JSON-serializing wrapper around a {@link KVNamespace} for the common
  * "look in cache, fall back to the source of truth" pattern. Reads and writes are best-effort:
  * any KV error, serialization failure, or oversized key is swallowed so callers transparently
- * fall through to their backing store instead of throwing.
+ * fall through to their backing store instead of throwing. An optional error reporter makes
+ * operational failures observable; kit-generated context omits cache types, keys, identifiers,
+ * and values.
  *
  * Cache keys are namespaced as `<appName><version><table>_<type>_<id>`, where a string `id` is
  * hashed with SHA-256 (hex) and a numeric `id` is used verbatim.
@@ -57,6 +59,17 @@ export interface KVNamespace {
   delete(key: string): Promise<void>;
 }
 
+/** The cache stage that failed while performing a fail-soft operation. */
+export type KVCacheOperation = 'read' | 'parse' | 'serialize' | 'write' | 'delete';
+
+/** Non-sensitive context supplied to {@link KVCacheOptions.onError}. */
+export interface KVCacheErrorContext {
+  /** The cache stage that failed. */
+  operation: KVCacheOperation;
+  /** Logical table name; cache types, raw keys, identifiers, and values are intentionally omitted. */
+  table: string;
+}
+
 /**
  * Configuration for a {@link KVCache} instance.
  */
@@ -81,6 +94,11 @@ export interface KVCacheOptions {
    * Defaults to `600`.
    */
   defaultLifetime?: number;
+  /**
+   * Optional synchronous observer for failures that the cache intentionally handles as misses.
+   * Reporter failures are isolated from cache callers and logged separately.
+   */
+  onError?: (error: unknown, context: KVCacheErrorContext) => void;
 }
 
 /**
@@ -141,6 +159,7 @@ export class KVCache {
   readonly #version: string;
   readonly #minTtl: number;
   readonly #defaultLifetime: number;
+  readonly #onError: KVCacheOptions['onError'];
 
   /**
    * Create a cache bound to a specific KV namespace.
@@ -154,6 +173,16 @@ export class KVCache {
     this.#version = options.version ?? 'v8_';
     this.#minTtl = options.minTtlSeconds ?? 60;
     this.#defaultLifetime = options.defaultLifetime ?? 600;
+    this.#onError = options.onError;
+  }
+
+  /** Report an operational failure without letting observer code break the fail-soft contract. */
+  #reportError(error: unknown, context: KVCacheErrorContext): void {
+    try {
+      this.#onError?.(error, context);
+    } catch (reporterError) {
+      console.error('[KVCache] error reporter failed', reporterError);
+    }
   }
 
   /**
@@ -196,13 +225,20 @@ export class KVCache {
     if (!key) {
       return undefined;
     }
+    let data: string | null;
     try {
-      const data = await this.#kv.get(key);
-      if (!data) {
-        return undefined;
-      }
+      data = await this.#kv.get(key);
+    } catch (error) {
+      this.#reportError(error, { operation: 'read', table });
+      return undefined;
+    }
+    if (!data) {
+      return undefined;
+    }
+    try {
       return JSON.parse(data) as T;
-    } catch {
+    } catch (error) {
+      this.#reportError(error, { operation: 'parse', table });
       return undefined;
     }
   }
@@ -211,8 +247,8 @@ export class KVCache {
    * JSON-serialize and store a value.
    *
    * Falsy `data` is ignored. The effective TTL is `max(minTtlSeconds, lifetime ?? defaultLifetime)`,
-   * honoring the KV 60-second floor. Oversized keys and serialization/write failures are silently
-   * skipped.
+   * honoring the KV 60-second floor. Oversized keys are skipped; serialization/write failures are
+   * skipped and reported when an observer is configured.
    *
    * @param table - Logical table or entity name.
    * @param type - Sub-key discriminator.
@@ -239,14 +275,21 @@ export class KVCache {
     if (!key) {
       return;
     }
-    let payload: string;
+    let payload: string | undefined;
     try {
-      payload = JSON.stringify(data);
-    } catch {
+      payload = (JSON.stringify as (value: unknown) => string | undefined)(data);
+    } catch (error) {
+      this.#reportError(error, { operation: 'serialize', table });
+      return;
+    }
+    if (payload === undefined) {
+      this.#reportError(new TypeError('Cache value is not JSON-serializable'), { operation: 'serialize', table });
       return;
     }
     const ttl = Math.max(this.#minTtl, lifetime ?? this.#defaultLifetime);
-    await this.#kv.put(key, payload, { expirationTtl: ttl }).catch(() => undefined);
+    await this.#kv.put(key, payload, { expirationTtl: ttl }).catch((error: unknown) => {
+      this.#reportError(error, { operation: 'write', table });
+    });
   }
 
   /**
@@ -295,7 +338,7 @@ export class KVCache {
   /**
    * Remove a cached entry.
    *
-   * Oversized keys and delete failures are silently ignored.
+   * Oversized keys are ignored. Delete failures are reported when an observer is configured.
    *
    * @param table - Logical table or entity name.
    * @param type - Sub-key discriminator.
@@ -311,6 +354,8 @@ export class KVCache {
     if (!key) {
       return;
     }
-    await this.#kv.delete(key).catch(() => undefined);
+    await this.#kv.delete(key).catch((error: unknown) => {
+      this.#reportError(error, { operation: 'delete', table });
+    });
   }
 }
