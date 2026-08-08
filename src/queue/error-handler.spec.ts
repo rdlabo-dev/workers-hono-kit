@@ -28,7 +28,7 @@ describe('createQueueErrorHandler', () => {
 
     expect(errorSpy).toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledWith(error, {
-      tags: { queue: 'payment-reload', queue_message_id: 'fail-1' },
+      tags: { queue: 'payment-reload', queue_message_id: 'fail-1', queue_disposition: 'retry' },
       extra: { attempts: 2, body: { userId: 1 } },
     });
     errorSpy.mockRestore();
@@ -48,6 +48,25 @@ describe('createQueueErrorHandler', () => {
 
     onError(new Error('final'), fakeMessage({ attempts: 4 }));
     expect(captureException).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+  });
+
+  it('captures non-retryable failures immediately even when retry noise is gated', () => {
+    const captureException = vi.fn();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const onError = createQueueErrorHandler({
+      queue: 'payment-reload',
+      maxRetries: 3,
+      captureException,
+    });
+    const error = Object.assign(new Error('permanent'), { queueDisposition: 'discard' as const });
+
+    onError(error, fakeMessage({ attempts: 1 }));
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { queue: 'payment-reload', queue_message_id: 'msg-1', queue_disposition: 'discard' },
+      extra: { attempts: 1, body: { userId: 1 } },
+    });
     vi.restoreAllMocks();
   });
 

@@ -104,9 +104,19 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `verifyAppleReceipt(receipt, opts)` / `classifyAppleRenewal(verify, now)` / `AppleRenewalClassification` / `AppleRenewalState` / `AppleVerifyReceiptResponse` / `ApplePendingRenewalInfo` / `AppleLatestReceiptInfo` | Verify an App Store receipt (production → sandbox fallback; inject `password` / `fetchImpl`) and classify it into `billing_retry` / `lapsed` / `active` / `unknown` plus the raw fields used (`statusCode` / `billingRetryStatus` / `autoRenewStatus`, latest `original_transaction_id` / `expires_date_ms`). |
 | `googleAccessToken(creds, fetch?)` / `getGoogleSubscription(opts)` / `classifyGoogleSubscription(purchase, now)` / `GoogleSubscriptionClassification` / `GoogleSubscriptionState` / `GoogleSubscriptionPurchase` / `GoogleOAuthCredentials` | Exchange a refresh token for an Android Publisher access token (throws on `invalid_grant`), fetch a subscription purchase, and classify it into `canceled` / `gone` / `active` / `unknown` plus raw `statusCode` / `cancelReason`. |
 | `sendInChunks(queue, messages, options?)` / `QueueLike` / `QueueSendMessage` | Send queue messages in bounded chunks to stay under the Workers subrequest cap per invocation. `options.chunkSize` sets the per-batch size (defaults to and is capped at 100). |
-| `processBatch(batch, handler, options?)` / `MessageBatchLike` / `QueueMessageLike` / `ProcessBatchOptions` / `ProcessBatchResult` | Process a queue batch with bounded concurrency (consumer-side counterpart to `sendInChunks`). |
-| `createQueueErrorHandler(options)` / `CreateQueueErrorHandlerOptions` | Factory for `processBatch`'s `onError`: logs every failure; optional Sentry capture with queue/message context; optional `maxRetries` gate (report only on final attempt). |
+| `processBatch(batch, handler, options?)` / `isNonRetryableQueueError(error)` / `NonRetryableQueueErrorLike` / `MessageBatchLike` / `QueueMessageLike` / `ProcessBatchOptions` / `ProcessBatchResult` | Process a queue batch with bounded concurrency. Errors explicitly tagged with `queueDisposition: 'discard'` are reported and acked as permanent failures; all other errors are retried. |
+| `createQueueErrorHandler(options)` / `CreateQueueErrorHandlerOptions` | Factory for `processBatch`'s `onError`: logs every failure; optional Sentry capture with queue/message context; optional `maxRetries` gate (report only on final attempt, except permanent failures which are reported immediately). |
 | `ExecutionContextLike` | Minimal `waitUntil`-only Workers execution context shape used by lifecycle-compatible APIs and deferred work helpers. |
+
+Permanent Queue failures must opt in with the Queue-specific marker; unrelated `retryable` fields are ignored:
+
+```ts
+import type { NonRetryableQueueErrorLike } from '@rdlabo/workers-hono-kit';
+
+class CustomerLinkMissingError extends Error implements NonRetryableQueueErrorLike {
+  readonly queueDisposition = 'discard' as const;
+}
+```
 
 ### Data layer — `@rdlabo/workers-hono-kit/db`
 

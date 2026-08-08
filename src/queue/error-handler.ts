@@ -1,4 +1,5 @@
 import type { SentryExceptionReporterLike } from '../http/http-error.js';
+import { isNonRetryableQueueError } from './consumer.js';
 import type { QueueMessageLike } from './consumer.js';
 
 /**
@@ -9,8 +10,10 @@ export interface CreateQueueErrorHandlerOptions {
   queue: string;
   /**
    * When set, `captureException` is called only after the final delivery attempt
-   * (`message.attempts > maxRetries`). Cloudflare Queues uses 1-based `attempts`; the last delivery
-   * before the dead-letter queue has `attempts === maxRetries + 1`.
+   * (`message.attempts > maxRetries`). Errors tagged with `queueDisposition: 'discard'` are captured
+   * on their first delivery because {@link processBatch} acknowledges them immediately. Cloudflare
+   * Queues uses 1-based `attempts`; the last delivery before the dead-letter queue has
+   * `attempts === maxRetries + 1`.
    */
   maxRetries?: number;
   /** Optional Sentry client. Omit for console-only reporting (e.g. airlec). */
@@ -33,11 +36,15 @@ export function createQueueErrorHandler(
     if (!capture) {
       return;
     }
-    if (maxRetries !== undefined && message.attempts <= maxRetries) {
+    if (!isNonRetryableQueueError(error) && maxRetries !== undefined && message.attempts <= maxRetries) {
       return;
     }
     capture(error, {
-      tags: { queue, queue_message_id: message.id },
+      tags: {
+        queue,
+        queue_message_id: message.id,
+        queue_disposition: isNonRetryableQueueError(error) ? 'discard' : 'retry',
+      },
       extra: { attempts: message.attempts, body: message.body },
     });
   };

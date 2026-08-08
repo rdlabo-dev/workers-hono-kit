@@ -1,12 +1,14 @@
 /**
  * Consumer-side helper for processing a Cloudflare Queues `MessageBatch` with per-message success and
- * failure handling.
+ * failure handling, including explicit acknowledgement of permanent failures.
  *
  * A queue consumer invocation receives at most `max_batch_size` messages (configured in
  * `wrangler.toml`), which is precisely the mechanism that bounds its subrequest budget: with a small
  * `max_batch_size`, each invocation performs a fixed, small number of external calls no matter how
  * many messages are backed up in the queue. {@link processBatch} applies the standard
  * ack-on-success / retry-on-failure discipline so one poison message does not fail its whole batch.
+ * Errors explicitly tagged with `queueDisposition: 'discard'` are reported and acknowledged because
+ * delivering the same payload again cannot make them converge.
  *
  * Messages are processed sequentially. This keeps the number of *simultaneously open* subrequests at
  * one, staying well clear of the Workers concurrent-connection ceiling, and makes the per-invocation
@@ -67,8 +69,10 @@ export interface MessageBatchLike<Body = unknown> {
  */
 export interface ProcessBatchOptions<Body = unknown> {
   /**
-   * Invoked when `handler` throws for a message, immediately before the message is marked for retry.
-   * Use it to log or report; it must not throw. Defaults to `console.error`.
+   * Invoked when `handler` throws for a message, before the message is retried or acknowledged as a
+   * permanent failure. Use it to log or report; it must not throw. Defaults to `console.error`.
+   * If a custom hook does throw, `processBatch` emits a console fallback and still applies the
+   * original error's disposition so a telemetry outage cannot turn a poison message into retries.
    */
   onError?: (error: unknown, message: QueueMessageLike<Body>) => void;
   /**
@@ -84,15 +88,37 @@ export interface ProcessBatchOptions<Body = unknown> {
 export interface ProcessBatchResult {
   /** Messages whose handler completed successfully and were acked. */
   processed: number;
+  /** Messages whose handler failed permanently and were acked instead of retried. */
+  discarded: number;
   /** Messages whose handler threw and were marked for retry. */
   failed: number;
 }
 
 /**
- * Process every message in `batch` sequentially, acking on success and retrying on failure.
+ * Error contract for failures that cannot converge by redelivering the same queue message.
  *
- * Each message is passed to `handler`; if it resolves the message is acked, and if it throws the
- * error is routed to {@link ProcessBatchOptions.onError} and the message is marked for retry (honoring
+ * Domain packages should use a named error class with this flag. {@link processBatch} owns the
+ * transport decision: it reports the failure through `onError`, acknowledges the message, and does
+ * not spend retries or dead-letter capacity on it.
+ */
+export interface NonRetryableQueueErrorLike {
+  readonly queueDisposition: 'discard';
+}
+
+/** Return whether an unknown thrown value explicitly opts out of queue retry. */
+export function isNonRetryableQueueError(error: unknown): error is NonRetryableQueueErrorLike {
+  return (
+    typeof error === 'object' && error !== null && 'queueDisposition' in error && error.queueDisposition === 'discard'
+  );
+}
+
+/**
+ * Process every message in `batch` sequentially, acking successes and permanent failures while
+ * retrying transient or unclassified failures.
+ *
+ * Each message is passed to `handler`; if it resolves the message is acked. A thrown error is routed
+ * to {@link ProcessBatchOptions.onError}; errors tagged with `queueDisposition: 'discard'` are then
+ * acked and counted as discarded, while all other errors are marked for retry (honoring
  * {@link ProcessBatchOptions.retryDelaySeconds}). One failing message never affects the others, and
  * the returned counts let tests assert that the per-invocation workload — and therefore the
  * subrequest count — stayed bounded by the batch size.
@@ -102,7 +128,7 @@ export interface ProcessBatchResult {
  * @param handler - Async work for a single message; performs the bounded external call(s). Receives
  *   the decoded `body` and the raw message (for `attempts`, `id`, etc.).
  * @param options - Error reporting and retry tuning; see {@link ProcessBatchOptions}.
- * @returns The number of processed and failed messages.
+ * @returns The number of processed, discarded, and retryable-failed messages.
  * @example
  * ```ts
  * const { processed, failed } = await processBatch(
@@ -126,6 +152,7 @@ export async function processBatch<Body>(
     options?.retryDelaySeconds === undefined ? undefined : { delaySeconds: options.retryDelaySeconds };
 
   let processed = 0;
+  let discarded = 0;
   let failed = 0;
   for (const message of batch.messages) {
     try {
@@ -135,12 +162,24 @@ export async function processBatch<Body>(
     } catch (error) {
       try {
         onError(error, message);
-      } catch {
-        // onError contract says "must not throw"; guard defensively so retry() and remaining messages still run.
+      } catch (reportingError) {
+        // Reporting is best-effort. Preserve the domain error's disposition, but never let a broken
+        // custom reporter make a permanent failure disappear without any local trace.
+        console.error(
+          `[queue:${batch.queue}] onError failed for message ${message.id}`,
+          reportingError,
+          'original error:',
+          error,
+        );
+      }
+      if (isNonRetryableQueueError(error)) {
+        message.ack();
+        discarded++;
+        continue;
       }
       message.retry(retryOptions);
       failed++;
     }
   }
-  return { processed, failed };
+  return { processed, discarded, failed };
 }
