@@ -33,8 +33,9 @@ export const SECURETOKEN_JWK_URL =
  *
  * This replaces the `firebase-admin` Auth surface (`verifyIdToken` / `getUser` /
  * `deleteUser`) in environments where the Node SDK cannot run, such as Cloudflare Workers.
- * Token verification mirrors the admin SDK's checks: issuer and audience equal to the
- * project id, an RS256 signature, a non-empty subject (the uid), and a valid `auth_time`.
+ * Token verification follows Firebase's documented third-party JWT validation requirements:
+ * issuer and audience equal to the project id, an RS256 signature, a non-empty subject (the
+ * uid), and valid `exp`, `iat`, and `auth_time` timestamps.
  *
  * @remarks
  * The verification key is supplied as `keyResolver`:
@@ -72,30 +73,43 @@ export class JoseFirebaseVerifier implements FirebaseVerifier {
    * Verify a Firebase ID token and return its decoded payload.
    *
    * Checks the RS256 signature against the configured key, enforces the expected issuer and
-   * audience (the project id), and applies the admin SDK's extra checks: a non-empty string
-   * subject of at most 128 characters and an `auth_time` that is a number not in the future.
+   * audience (the project id), and applies Firebase's documented ID-token checks: a required
+   * future `exp`, a non-empty string subject of at most 128 characters, plus finite `iat` and
+   * `auth_time` values that are not in the future. Timestamp comparisons use strict zero clock
+   * tolerance.
    *
    * @param idToken - The raw Firebase ID token (JWT) to verify.
    * @returns The decoded payload, with `uid` set from `sub` and `email` lifted to a top-level field.
    * @throws If the signature, issuer, audience, or expiry are invalid, if the subject is
-   *   missing/non-string/too long, or if `auth_time` is missing or in the future.
+   *   missing/non-string/too long, or if `iat`/`auth_time` is missing, non-finite, or in the future.
    */
   async verifyIdToken(idToken: string): Promise<DecodedIdToken> {
+    const now = this.nowSeconds();
     const options = {
       issuer: `https://securetoken.google.com/${this.opts.projectId}`,
       audience: this.opts.projectId,
       algorithms: ['RS256'] as string[],
+      requiredClaims: ['exp'],
+      currentDate: new Date(now * 1000),
+      clockTolerance: 0,
     };
     // Branch so each call matches a single jwtVerify overload (static key vs getKey fn).
     const key = this.opts.keyResolver;
     const { payload } =
       typeof key === 'function' ? await jwtVerify(idToken, key, options) : await jwtVerify(idToken, key, options);
-    // Mirror firebase-admin's extra checks beyond signature/iss/aud/exp:
+    // Apply Firebase's documented checks beyond signature/iss/aud/exp.
     if (!payload.sub || typeof payload.sub !== 'string' || payload.sub.length > 128) {
       throw new Error('Firebase ID token has an invalid subject');
     }
+    if (!Number.isFinite(payload.exp)) {
+      throw new Error('Firebase ID token has an invalid exp');
+    }
+    const issuedAt = payload.iat;
+    if (typeof issuedAt !== 'number' || !Number.isFinite(issuedAt) || issuedAt > now) {
+      throw new Error('Firebase ID token has an invalid iat');
+    }
     const authTime = payload.auth_time;
-    if (typeof authTime !== 'number' || authTime > this.nowSeconds()) {
+    if (typeof authTime !== 'number' || !Number.isFinite(authTime) || authTime > now) {
       throw new Error('Firebase ID token has an invalid auth_time');
     }
     return { ...payload, uid: payload.sub, email: payload.email as string | undefined };
@@ -154,6 +168,10 @@ export class JoseFirebaseVerifier implements FirebaseVerifier {
    * @internal
    */
   private nowSeconds(): number {
-    return this.opts.now ? this.opts.now() : Math.floor(Date.now() / 1000);
+    const now = this.opts.now ? this.opts.now() : Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(now)) {
+      throw new Error('Firebase verifier clock returned an invalid time');
+    }
+    return now;
   }
 }

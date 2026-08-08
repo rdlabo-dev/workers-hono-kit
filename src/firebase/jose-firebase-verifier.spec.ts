@@ -1,4 +1,4 @@
-import { SignJWT, generateKeyPair } from 'jose';
+import { CompactSign, SignJWT, generateKeyPair } from 'jose';
 import { describe, it, expect, vi } from 'vitest';
 import type { IdentityToolkit } from './identity-toolkit.js';
 import { JoseFirebaseVerifier } from './jose-firebase-verifier.js';
@@ -17,20 +17,38 @@ async function makeVerifier(identity?: IdentityToolkit) {
 
 function sign(
   privateKey: SignKey,
-  claims: { iss?: string; aud?: string; sub?: string; expOffset?: number; authTime?: number },
+  claims: {
+    iss?: string;
+    aud?: string;
+    sub?: string;
+    expOffset?: number;
+    omitExpiration?: boolean;
+    issuedAt?: number;
+    omitIssuedAt?: boolean;
+    authTime?: number;
+    omitAuthTime?: boolean;
+  },
 ) {
   const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ auth_time: claims.authTime ?? now }) // firebase-admin requires auth_time
+  const jwt = new SignJWT(claims.omitAuthTime ? {} : { auth_time: claims.authTime ?? now })
     .setProtectedHeader({ alg: 'RS256' })
     .setIssuer(claims.iss ?? ISSUER)
     .setAudience(claims.aud ?? PROJECT)
-    .setSubject(claims.sub ?? 'uid-123')
-    .setIssuedAt(now)
-    .setExpirationTime(now + (claims.expOffset ?? 3600))
-    .sign(privateKey);
+    .setSubject(claims.sub ?? 'uid-123');
+  if (!claims.omitIssuedAt) {
+    jwt.setIssuedAt(claims.issuedAt ?? now);
+  }
+  if (!claims.omitExpiration) {
+    jwt.setExpirationTime(now + (claims.expOffset ?? 3600));
+  }
+  return jwt.sign(privateKey);
 }
 
-describe('JoseFirebaseVerifier (verifyIdToken parity with firebase-admin)', () => {
+function signRaw(privateKey: SignKey, payload: string) {
+  return new CompactSign(new TextEncoder().encode(payload)).setProtectedHeader({ alg: 'RS256' }).sign(privateKey);
+}
+
+describe('JoseFirebaseVerifier (Firebase ID-token validation requirements)', () => {
   it('accepts a valid RS256 token and returns uid = sub', async () => {
     const { verifier, privateKey } = await makeVerifier();
     const token = await sign(privateKey, { sub: 'uid-abc' });
@@ -56,6 +74,12 @@ describe('JoseFirebaseVerifier (verifyIdToken parity with firebase-admin)', () =
     await expect(verifier.verifyIdToken(token)).rejects.toBeDefined();
   });
 
+  it('rejects a missing exp', async () => {
+    const { verifier, privateKey } = await makeVerifier();
+    const token = await sign(privateKey, { omitExpiration: true });
+    await expect(verifier.verifyIdToken(token)).rejects.toBeDefined();
+  });
+
   it('rejects a token signed by a different key', async () => {
     const { verifier } = await makeVerifier();
     const { privateKey: otherKey } = await generateKeyPair('RS256');
@@ -75,12 +99,71 @@ describe('JoseFirebaseVerifier (verifyIdToken parity with firebase-admin)', () =
     await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid auth_time');
   });
 
-  it('honours an injected now() for auth_time checks', async () => {
+  it('rejects a missing auth_time', async () => {
+    const { verifier, privateKey } = await makeVerifier();
+    const token = await sign(privateKey, { omitAuthTime: true });
+    await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid auth_time');
+  });
+
+  it('rejects a missing iat', async () => {
+    const { verifier, privateKey } = await makeVerifier();
+    const token = await sign(privateKey, { omitIssuedAt: true });
+    await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid iat');
+  });
+
+  it('rejects an iat in the future', async () => {
+    const { verifier, privateKey } = await makeVerifier();
+    const token = await sign(privateKey, { issuedAt: Math.floor(Date.now() / 1000) + 9999 });
+    await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid iat');
+  });
+
+  it('rejects non-finite iat and auth_time values decoded from valid JSON number syntax', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const { verifier, privateKey } = await makeVerifier();
+    const infiniteIssuedAt = await signRaw(
+      privateKey,
+      `{"iss":"${ISSUER}","aud":"${PROJECT}","sub":"uid-123","iat":-1e400,"auth_time":${now},"exp":${now + 3600}}`,
+    );
+    const infiniteAuthTime = await signRaw(
+      privateKey,
+      `{"iss":"${ISSUER}","aud":"${PROJECT}","sub":"uid-123","iat":${now},"auth_time":-1e400,"exp":${now + 3600}}`,
+    );
+    await expect(verifier.verifyIdToken(infiniteIssuedAt)).rejects.toThrow('invalid iat');
+    await expect(verifier.verifyIdToken(infiniteAuthTime)).rejects.toThrow('invalid auth_time');
+  });
+
+  it('rejects a non-finite exp decoded from valid JSON number syntax', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const { verifier, privateKey } = await makeVerifier();
+    const token = await signRaw(
+      privateKey,
+      `{"iss":"${ISSUER}","aud":"${PROJECT}","sub":"uid-123","iat":${now},"auth_time":${now},"exp":1e400}`,
+    );
+    await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid exp');
+  });
+
+  it('honours an injected now() for iat and auth_time checks', async () => {
     const future = Math.floor(Date.now() / 1000) + 10_000;
     const { publicKey, privateKey } = await generateKeyPair('RS256');
     const verifier = new JoseFirebaseVerifier({ projectId: PROJECT, keyResolver: publicKey, now: () => future });
-    const token = await sign(privateKey, { authTime: future - 5 });
+    const token = await sign(privateKey, { expOffset: 20_000, issuedAt: future - 10, authTime: future - 5 });
     await expect(verifier.verifyIdToken(token)).resolves.toMatchObject({ uid: 'uid-123' });
+  });
+
+  it('uses the injected now() for exp checks', async () => {
+    const realNow = Math.floor(Date.now() / 1000);
+    const past = realNow - 10_000;
+    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const verifier = new JoseFirebaseVerifier({ projectId: PROJECT, keyResolver: publicKey, now: () => past });
+    const token = await sign(privateKey, { expOffset: -100, issuedAt: past - 10, authTime: past - 5 });
+    await expect(verifier.verifyIdToken(token)).resolves.toMatchObject({ uid: 'uid-123' });
+  });
+
+  it('rejects a non-finite injected clock', async () => {
+    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const verifier = new JoseFirebaseVerifier({ projectId: PROJECT, keyResolver: publicKey, now: () => Infinity });
+    const token = await sign(privateKey, {});
+    await expect(verifier.verifyIdToken(token)).rejects.toThrow('clock returned an invalid time');
   });
 
   describe('getUser / deleteUser', () => {
