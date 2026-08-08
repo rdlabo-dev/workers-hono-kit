@@ -2,7 +2,8 @@
 /**
  * check-subrequest-fanout — flag per-item external-call fan-outs that scale with data size.
  *
- * Cloudflare Workers cap subrequests per invocation (50 free / 1000 paid). Looping an external call
+ * Cloudflare Workers cap external subrequests per invocation (50 on Free; 10,000 by default on
+ * Paid, configurable up to 10 million). Looping an external call
  * (fetch / AI / Stripe / push / ES) once per row reintroduces an unbounded fan-out that eventually
  * exceeds the cap as the userbase/data grows. This gate greps for the concurrency-loop markers that
  * usually wrap such fan-outs and fails CI unless the site is explicitly annotated as safe.

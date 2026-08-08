@@ -2,14 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { hyperdriveConnectionOptions, withMysqlConnections } from './connection.js';
 import type { HyperdriveLike } from './connection.js';
 
-const ended: string[] = [];
 const opened: Record<string, unknown>[] = [];
+let holdConnections = false;
+let pendingConnections: (() => void)[] = [];
 
 vi.mock('mysql2/promise', () => ({
-  createConnection: vi.fn(async (opts: Record<string, unknown>) => {
+  createConnection: vi.fn((opts: Record<string, unknown>) => {
     opened.push(opts);
-    const tag = opened.length === 1 ? 'primary' : 'replica';
-    return { end: vi.fn(async () => void ended.push(tag)) };
+    const connection = { end: vi.fn() };
+    if (!holdConnections) {
+      return Promise.resolve(connection);
+    }
+    return new Promise((resolve) =>
+      pendingConnections.push(() => {
+        resolve(connection);
+      }),
+    );
   }),
 }));
 
@@ -38,22 +46,30 @@ describe('hyperdriveConnectionOptions', () => {
 });
 
 describe('withMysqlConnections', () => {
-  it('fn の結果を返し、finally で両接続を ctx.waitUntil 越しに閉じる', async () => {
+  it('両接続を並列に開き、Workersに終了処理を委ねる', async () => {
     opened.length = 0;
-    ended.length = 0;
+    pendingConnections = [];
+    holdConnections = true;
     const waited: Promise<unknown>[] = [];
-    const ctx = { waitUntil: (p: Promise<unknown>) => void waited.push(p) };
+    const ctx = {
+      waitUntil: (p: Promise<unknown>) => {
+        waited.push(p);
+      },
+    };
 
-    const result = await withMysqlConnections({ primary: hd, replica: hd }, ctx, async (conns) => {
+    const resultPromise = withMysqlConnections({ primary: hd, replica: hd }, ctx, async (conns) => {
       expect(conns.primary).toBeDefined();
       expect(conns.replica).toBeDefined();
       return 'done';
     });
 
-    expect(result).toBe('done');
     expect(opened).toHaveLength(2);
-    expect(waited).toHaveLength(1);
-    await waited[0];
-    expect(ended.sort()).toEqual(['primary', 'replica']);
+    for (const resolve of pendingConnections) {
+      resolve();
+    }
+
+    await expect(resultPromise).resolves.toBe('done');
+    expect(waited).toHaveLength(0);
+    holdConnections = false;
   });
 });

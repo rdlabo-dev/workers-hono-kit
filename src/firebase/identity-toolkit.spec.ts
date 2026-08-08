@@ -155,4 +155,18 @@ describe('IdentityToolkit', () => {
     const client2 = new IdentityToolkit(await makeServiceAccount());
     await expect(client2.remove('uid1', NOW)).rejects.toThrow('Identity Toolkit delete failed');
   });
+
+  it('remove は USER_NOT_FOUND を削除済みとして成功扱いにする', async () => {
+    stubFetch((url) =>
+      url === TOKEN_URL
+        ? tokenResponse()
+        : new Response(JSON.stringify({ error: { code: 400, message: 'USER_NOT_FOUND' } }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+    );
+    const client = new IdentityToolkit(await makeServiceAccount());
+
+    await expect(client.remove('already-deleted', NOW)).resolves.toBeUndefined();
+  });
 });

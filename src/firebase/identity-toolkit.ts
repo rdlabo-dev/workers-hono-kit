@@ -28,8 +28,8 @@ const LOOKUP_CHUNK_SIZE = 100;
  * Minimal Google Identity Toolkit REST client for the user-management operations that token
  * verification does not cover: `accounts:lookup` (getUser) and `accounts:delete` (deleteUser).
  *
- * This replaces the parts of the `firebase-admin` Node SDK that cannot run on Cloudflare
- * Workers (workerd).
+ * This is a focused REST alternative for projects that only need a small subset of Firebase Auth
+ * administration and do not want to bundle the broader `firebase-admin` SDK.
  *
  * @remarks
  * Authentication follows the JWT-bearer flow: a JWT assertion is signed with the service
@@ -173,6 +173,12 @@ export class IdentityToolkit {
       body: JSON.stringify({ localId: uid }),
     });
     if (!res.ok) {
+      const body = (await res.json().catch(() => undefined)) as { error?: { message?: string } } | undefined;
+      // Account deletion is an idempotent operation for callers. A retry after a lost response may
+      // legitimately find that the preceding request already removed the Firebase user.
+      if (body?.error?.message === 'USER_NOT_FOUND') {
+        return;
+      }
       throw new Error(`Identity Toolkit delete failed: ${res.status}`);
     }
   }
