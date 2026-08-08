@@ -24,8 +24,8 @@ export interface ValidateOptions {
    *
    * @remarks
    * This never changes validation behavior — the response is always a NestJS `ValidationPipe`-shaped
-   * 400. Exceptions thrown by the hook are swallowed. The default is a no-op (4xx errors are not
-   * reported); pass a hook to forward failures to an error tracker.
+   * 400. Exceptions thrown by the hook are logged without changing the response. The default is a
+   * no-op (4xx errors are not reported); pass a hook to forward failures to an error tracker.
    *
    * @param error - The zod error describing the failed validation.
    * @param c - The Hono context for the failing request.
@@ -89,8 +89,9 @@ export function validate<T>(target: ValidationTarget, schema: ZodType<T>, option
       console.warn(`[validation] ${c.req.method} ${c.req.path} (${target}) → 400: ${messages.join('; ')}`);
       try {
         options?.onValidationError?.(result.error, c);
-      } catch {
-        // Reporting must never change validation error behavior.
+      } catch (reportingError) {
+        // Reporting must never change validation behavior, but a broken reporter must remain visible.
+        console.error('[validation] onValidationError failed', reportingError);
       }
       return c.json({ statusCode: 400, message: messages, error: 'Bad Request' }, 400);
     }

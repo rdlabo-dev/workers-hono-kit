@@ -93,7 +93,7 @@ export interface HttpErrorHandlerOptions<E extends Env = Env> {
   isHttpError?: (err: unknown) => err is HttpErrorLike;
   /**
    * Hook invoked before an unexpected (non-HTTP) error is returned as a 500, typically used to report the
-   * error (e.g. to Sentry). Any exception thrown by this hook is swallowed so reporting cannot alter the
+   * error (e.g. to Sentry). Any exception thrown by this hook is logged and kept from altering the
    * error response.
    */
   onUnhandledError?: (err: unknown, c: Context<E>) => void;
@@ -158,8 +158,10 @@ export function createHttpErrorHandler<E extends Env = Env>(options: HttpErrorHa
 
     try {
       onUnhandledError?.(err, c);
-    } catch {
-      // Reporting must never change the behavior of the error response.
+    } catch (reportingError) {
+      // Reporting must never change the behavior of the error response, but its own failure must
+      // stay visible so a broken observability integration does not go unnoticed.
+      console.error('[httpError] onUnhandledError failed', reportingError);
     }
     if (findMysqlDriverError(err)) {
       logMysqlDriverError(err, 500);

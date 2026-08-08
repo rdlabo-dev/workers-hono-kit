@@ -95,9 +95,11 @@ describe('validate', () => {
   });
 
   it('onValidationError が例外を投げても 400 レスポンスは不変', async () => {
+    const reporterError = new Error('reporting blew up');
     const onValidationError = vi.fn(() => {
-      throw new Error('reporting blew up');
+      throw reporterError;
     });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const res = await buildApp({ onValidationError }).request('/', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -106,6 +108,8 @@ describe('validate', () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { statusCode: number };
     expect(body.statusCode).toBe(400);
+    expect(consoleError).toHaveBeenCalledWith('[validation] onValidationError failed', reporterError);
+    consoleError.mockRestore();
   });
 
   it('成功時は onValidationError を呼ばない', async () => {
