@@ -106,6 +106,7 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `sendInChunks(queue, messages, options?)` / `QueueLike` / `QueueSendMessage` | Send queue messages in bounded chunks to stay under the Workers subrequest cap per invocation. `options.chunkSize` sets the per-batch size (defaults to and is capped at 100). |
 | `processBatch(batch, handler, options?)` / `isNonRetryableQueueError(error)` / `NonRetryableQueueErrorLike` / `MessageBatchLike` / `QueueMessageLike` / `ProcessBatchOptions` / `ProcessBatchResult` | Process a queue batch with bounded concurrency. Errors explicitly tagged with `queueDisposition: 'discard'` are reported and acked as permanent failures; all other errors are retried. |
 | `createQueueErrorHandler(options)` / `CreateQueueErrorHandlerOptions` | Factory for `processBatch`'s `onError`: logs every failure; optional Sentry capture with queue/message context; optional `maxRetries` gate (report only on final attempt, except permanent failures which are reported immediately). |
+| `assertStripeCustomerUpdated(options)` | Preserve the shared Stripe UPDATE→existence-check algorithm. `createNotFoundError(customerId)` can supply a domain-specific error without forking the algorithm. |
 | `ExecutionContextLike` | Minimal `waitUntil`-only Workers execution context shape used by lifecycle-compatible APIs and deferred work helpers. |
 
 Permanent Queue failures must opt in with the Queue-specific marker; unrelated `retryable` fields are ignored:

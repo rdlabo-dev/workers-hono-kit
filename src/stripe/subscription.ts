@@ -74,6 +74,7 @@ export async function assertStripeCustomerUpdated(options: {
   subscriptionId: string;
   updateCustomer: (receipt: string, productId: string, customerId: string) => Promise<number | { affected: number }>;
   countCustomer: (productId: string, customerId: string) => Promise<number>;
+  createNotFoundError?: (customerId: string) => Error;
 }): Promise<void> {
   const updated = await options.updateCustomer(options.subscriptionId, options.productId, options.customerId);
   const affected = typeof updated === 'number' ? updated : updated.affected;
@@ -82,6 +83,6 @@ export async function assertStripeCustomerUpdated(options: {
   }
 
   if ((await options.countCustomer(options.productId, options.customerId)) === 0) {
-    throw new Error(`Customer not found: ${options.customerId}`);
+    throw options.createNotFoundError?.(options.customerId) ?? new Error(`Customer not found: ${options.customerId}`);
   }
 }
