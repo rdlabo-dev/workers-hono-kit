@@ -54,7 +54,7 @@ describe('createValidate({ sentry })', () => {
     expect(captured).toHaveLength(1);
   });
 
-  it('Sentry が throw しても検証レスポンスは変わらない（通報は握り潰す）', async () => {
+  it('Sentry が throw しても検証レスポンスは変わらない', async () => {
     const sentry: SentryLike = {
       withScope: () => {
         throw new Error('sentry down');

@@ -64,8 +64,9 @@ export function createQueryFailedErrorHandler<E extends Env = Env>(options: Quer
       if (classified.statusCode === 500) {
         try {
           onUnhandledError?.(err, c);
-        } catch {
-          // Reporting must never change the error response.
+        } catch (reportingError) {
+          // Reporting must never change the error response, but a broken reporter must remain visible.
+          console.error('[queryFailedError] onUnhandledError failed', reportingError);
         }
       }
       return c.json({ statusCode: classified.statusCode, message: classified.message }, classified.statusCode);

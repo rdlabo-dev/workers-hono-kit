@@ -87,10 +87,11 @@ describe('createQueryFailedErrorHandler', () => {
   });
 
   it('onUnhandledError が throw しても応答は変わらない', async () => {
+    const reporterError = new Error('reporter crash');
     const onUnhandledError = vi.fn(() => {
-      throw new Error('reporter crash');
+      throw reporterError;
     });
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { app } = buildApp(onUnhandledError);
 
     const res = await app.request('/db-500');
@@ -98,6 +99,7 @@ describe('createQueryFailedErrorHandler', () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ statusCode: 500, message: 'db error' });
     expect(onUnhandledError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith('[queryFailedError] onUnhandledError failed', reporterError);
     vi.restoreAllMocks();
   });
 });

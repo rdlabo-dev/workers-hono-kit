@@ -57,12 +57,16 @@ describe('createHttpErrorHandler', () => {
   });
 
   it('通報フックが throw してもエラーレスポンスは変わらない', async () => {
+    const reporterError = new Error('reporter exploded');
     const onUnhandledError = () => {
-      throw new Error('reporter exploded');
+      throw reporterError;
     };
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const res = await buildApp({ onUnhandledError }).request('/boom');
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ statusCode: 500, message: 'Internal server error' });
+    expect(consoleError).toHaveBeenCalledWith('[httpError] onUnhandledError failed', reporterError);
+    consoleError.mockRestore();
   });
 
   it('カスタム isHttpError と body 脱出口（winecode HttpError 相当）を verbatim で返す', async () => {
