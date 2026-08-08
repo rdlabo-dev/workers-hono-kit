@@ -91,7 +91,7 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `createIdempotencyInput(...)` / `runIdempotentMutation(...)` | Canonical payload hashing and a transaction-bound mutation state machine. Missing keys preserve legacy behavior; replay/conflict/in-flight semantics are shared while each app owns its schema and ORM adapter. |
 | `withIdempotencyHttpErrors(run)` | Maps only standard idempotency failures to 400/409/503 and rethrows unrelated failures. |
 | `createAiGatewayProvider(config)` / `AiGatewayConfig` / `AiGatewayProvider` | Route `@ai-sdk` models through the Cloudflare AI Gateway, via either a Workers `AI` binding or REST credentials (`accountId` / `gateway` / `token`). |
-| `KVCache` / `KVNamespace` / `KVCacheOptions` | Workers-KV cache-aside helper (key `appName+version+table_type_column`, sha256 for string ids, TTL clamped ≥60s). Set `appName` / `version` per application. |
+| `KVCache` / `KVNamespace` / `KVCacheOptions` / `KVCacheErrorContext` / `KVCacheOperation` | Workers-KV cache-aside helper (key `appName+version+table_type_column`, sha256 for string ids, TTL clamped ≥60s). Set `appName` / `version` per application; optional `onError(error, context)` observes fail-soft read/parse/serialize/write/delete failures. Context contains only the operation and logical table, not cache types, keys, ids, or values. |
 | `createStripeClient(secret, opts?)` / `verifyStripeWebhook(...)` / `CreateStripeClientOptions` | Workers-native Stripe client (fetch transport) + async webhook verification (SubtleCrypto). `apiVersion` optional (pin to a fixed Stripe API version). |
 | `extractStripeFailureReason(source)` / `StripeFailureReason` | Duck-type a Stripe `PaymentIntent` / `Invoice` / `{ paymentIntent?, invoice? }` / thrown error into a normalized `{ code, declineCode, message, paymentIntentId, invoiceId, subscriptionId }` (SDK-free), or `null`. |
 | `stripeFailureMessageJa(reason)` | Render a `StripeFailureReason` (or `null`) as a single user-facing Japanese sentence (`decline_code` > `code`; fraud codes masked; unknown → generic). |
@@ -624,6 +624,17 @@ import { KVCache } from '@rdlabo/workers-hono-kit';
 const cache = new KVCache(env.CACHE, { appName: 'myapp' }); // version prefix defaults to 'v8_'
 await cache.set('users', 'byId', userId, user, 600);
 const hit = await cache.get<User>('users', 'byId', userId);
+```
+
+Cache failures remain fail-soft. To report them without changing caller behavior, configure the
+optional observer (for example, to forward the raw error to Sentry). Kit-generated context is
+limited to `operation` and `table`; it never adds the cache type, generated key, id, or value.
+
+```ts
+const cache = new KVCache(env.CACHE, {
+  appName: 'myapp',
+  onError: (error, context) => reportError(error, context),
+});
 ```
 
 ### Stripe (Workers-native)
