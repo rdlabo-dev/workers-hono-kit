@@ -101,6 +101,25 @@ describe('assertStripeCustomerUpdated', () => {
     ).rejects.toThrow('Customer not found: cus_missing');
   });
 
+  it('uses the caller error factory without duplicating the update/existence algorithm', async () => {
+    const domainError = Object.assign(new Error('orphan Stripe customer'), {
+      queueDisposition: 'discard' as const,
+    });
+    const createNotFoundError = vi.fn().mockReturnValue(domainError);
+
+    await expect(
+      assertStripeCustomerUpdated({
+        productId: 'prod_1',
+        customerId: 'cus_missing',
+        subscriptionId: 'sub_1',
+        updateCustomer: vi.fn().mockResolvedValue(0),
+        countCustomer: vi.fn().mockResolvedValue(0),
+        createNotFoundError,
+      }),
+    ).rejects.toBe(domainError);
+    expect(createNotFoundError).toHaveBeenCalledWith('cus_missing');
+  });
+
   it('does not count the customer when the update affected rows', async () => {
     const countCustomer = vi.fn();
     await assertStripeCustomerUpdated({
