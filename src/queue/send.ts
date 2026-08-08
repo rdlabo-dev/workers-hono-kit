@@ -2,11 +2,13 @@
  * Producer-side helper for fanning a large list of items into a Cloudflare Queue without letting the
  * producer's own subrequest count scale linearly with the list.
  *
- * A Worker may issue at most 50 (free) / 1000 (paid) subrequests per invocation, and each
- * {@link QueueLike.send} counts as one subrequest. Enqueuing `N` items with per-item `send()` calls
- * therefore reintroduces the very unbounded fan-out that queues exist to remove. {@link sendInChunks}
- * instead groups items into batches and issues one {@link QueueLike.sendBatch} per batch, so the
- * producer spends `ceil(N / chunkSize)` subrequests regardless of how large `N` grows.
+ * Queue bindings call a Cloudflare internal service. The internal-service subrequest budget is
+ * 1,000 on Workers Free and matches the configured subrequest limit on Paid (10,000 by default,
+ * configurable up to 10 million). Each {@link QueueLike.send} counts as one subrequest. Enqueuing
+ * `N` items with per-item `send()` calls therefore reintroduces the very unbounded fan-out that
+ * queues exist to remove. {@link sendInChunks} instead groups items into batches and issues one
+ * {@link QueueLike.sendBatch} per batch, so the producer spends `ceil(N / chunkSize)` subrequests
+ * regardless of how large `N` grows.
  *
  * The heavy per-item work (external API calls, etc.) is expected to run in the queue *consumer*,
  * where each invocation processes only `max_batch_size` messages and thus enjoys its own bounded

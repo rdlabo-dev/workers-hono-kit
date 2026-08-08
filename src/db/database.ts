@@ -89,19 +89,22 @@ export interface Database<TDrizzle, TTx = TxOf<TDrizzle>> {
 }
 
 /**
- * A {@link Database} that owns its connections and must be disposed.
+ * A {@link Database} that opens its own connections.
  *
  * @remarks
- * Used by the variants that open connections internally (Hyperdrive- or Pool-backed).
+ * Used by variants that open connections internally. Lifecycle behavior depends on the backing
+ * implementation: pool-backed databases close their pool, while Hyperdrive-backed databases leave
+ * invocation-scoped connection cleanup to the Workers runtime.
  *
  * @typeParam TDrizzle - the consumer's Drizzle ORM type.
  * @typeParam TTx - the transaction-handle type, inferred from `TDrizzle` by default.
  */
 export interface DisposableDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends Database<TDrizzle, TTx> {
   /**
-   * Close the connections opened by this database.
+   * Release resources owned by the implementation. Hyperdrive-backed databases keep this method as
+   * a compatibility no-op; pool-backed databases use it to close their pool.
    *
-   * @returns a promise that settles once both connections are closed.
+   * @returns a promise that resolves after implementation-specific cleanup.
    */
   dispose(): Promise<void>;
 }
@@ -175,13 +178,15 @@ export interface CreateHyperdriveDatabaseOptions<TDrizzle> {
  * Create a {@link DisposableDatabase} that lazily opens its connections from Hyperdrive bindings.
  *
  * @remarks
- * Construct one per request and call `dispose()` after the response to close the connections.
- * Connections and the ORM are created on first use and reused for the lifetime of the instance; the
- * read/write/transaction surface is identical to {@link createMysqlDatabase}.
+ * Construct one per request. Connections and the ORM are created on first use and reused for the
+ * lifetime of the instance; the read/write/transaction surface is identical to
+ * {@link createMysqlDatabase}. Workers automatically cleans up connections at the end of the
+ * invocation, so callers do not need to close them manually.
  *
  * @typeParam TDrizzle - the consumer's Drizzle ORM type.
  * @param options - the primary/replica Hyperdrive bindings, the ORM factory, and connection options.
- * @returns a {@link DisposableDatabase} that must be disposed when done.
+ * @returns a {@link DisposableDatabase} whose compatibility `dispose()` method is a no-op; Workers
+ *   cleans up its invocation-scoped connections automatically.
  * @example
  * ```ts
  * const db = createHyperdriveDatabase({
@@ -189,11 +194,7 @@ export interface CreateHyperdriveDatabaseOptions<TDrizzle> {
  *   replicaHyperdrive: env.REPLICA,
  *   createOrm: (primary) => drizzle(primary, { schema, ...DRIZZLE_ORM_OPTIONS }),
  * });
- * try {
- *   await db.write((dz) => dz.insert(users).values(user));
- * } finally {
- *   await db.dispose();
- * }
+ * await db.write((dz) => dz.insert(users).values(user));
  * ```
  */
 export function createHyperdriveDatabase<TDrizzle>(
@@ -223,8 +224,9 @@ export function createHyperdriveDatabase<TDrizzle>(
       const dz = (await ormFor()) as DrizzleLike<TxOf<TDrizzle>>;
       return retryWhenDeadlock(() => dz.transaction(fn));
     },
-    async dispose(): Promise<void> {
-      await Promise.all([primaryConn?.then((c) => c.end()), replicaConn?.then((c) => c.end())]);
+    /** @deprecated Workers cleans up invocation-scoped connections automatically. */
+    dispose(): Promise<void> {
+      return Promise.resolve();
     },
   };
 }

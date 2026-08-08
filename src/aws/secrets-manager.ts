@@ -4,7 +4,7 @@ import { AwsClient } from 'aws4fetch';
  * AWS credentials used to sign Secrets Manager requests.
  *
  * @remarks
- * Cloudflare Workers have neither the AWS SDK nor IAM role credentials, so static AWS keys are supplied
+ * Cloudflare Workers do not provide the AWS default credential chain, so AWS credentials are supplied
  * as Workers secrets and used to produce a SigV4 signature.
  */
 export interface AwsSecretsOptions {
@@ -35,7 +35,7 @@ let cache: { key: string; value: Promise<unknown> } | null = null;
  * Fetch and parse a secret from AWS Secrets Manager, caching the result per isolate.
  *
  * Issues a `GetSecretValue` call to Secrets Manager via a SigV4-signed `fetch` (using aws4fetch), with no
- * AWS SDK involved. The parsed `SecretString` is cached per isolate keyed by region, access key ID, and
+ * broad AWS SDK dependency involved. The parsed `SecretString` is cached per isolate keyed by region, access key ID, and
  * secret ID; concurrent first-time callers share one in-flight request, and a rejected fetch clears the
  * cache entry so the next call retries.
  *

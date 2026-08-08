@@ -2,10 +2,10 @@
 
 Infrastructure toolkit for building APIs on [Hono](https://hono.dev) + [Cloudflare Workers](https://workers.cloudflare.com).
 
-It provides the building blocks a NestJS-style API needs but that don't run on `workerd` (no Node.js AWS SDK, no `firebase-admin`), plus middleware for common HTTP response concerns:
+It provides Workers-oriented building blocks for a NestJS-style API, plus middleware for common HTTP response concerns:
 
 - **Firebase ID-token verification** on Workers via [`jose`](https://github.com/panva/jose) (RS256 against Google's securetoken JWKS), with optional Identity Toolkit REST for `getUser` / `deleteUser`.
-- **AWS Secrets Manager / STS AssumeRole / CloudFront signed URLs** via SigV4-signed `fetch` ([`aws4fetch`](https://github.com/mhart/aws4fetch)) or Web Crypto — no AWS SDK.
+- **AWS Secrets Manager / STS AssumeRole / CloudFront signed URLs** via focused SigV4-signed `fetch` ([`aws4fetch`](https://github.com/mhart/aws4fetch)) or Web Crypto, avoiding a broad SDK dependency when only a few AWS APIs are needed.
 - **Middleware**: `finalizeResponse` (weak ETag via `hono/etag`), `validate` (NestJS `ValidationPipe`-shaped 400), and zod number-coercion helpers.
 - **Standard API errors**: `createHttpErrorHandler` / `notFoundHandler` / `HttpStatus`.
 - **Deadlock retry** (`ER_LOCK_DEADLOCK` exponential backoff) and an optional **MySQL data layer** (`@rdlabo/workers-hono-kit/db`) for Hyperdrive + Drizzle.
@@ -106,7 +106,7 @@ npm install ai ai-gateway-provider    # createAiGatewayProvider
 | `sendInChunks(queue, messages, options?)` / `QueueLike` / `QueueSendMessage` | Send queue messages in bounded chunks to stay under the Workers subrequest cap per invocation. `options.chunkSize` sets the per-batch size (defaults to and is capped at 100). |
 | `processBatch(batch, handler, options?)` / `MessageBatchLike` / `QueueMessageLike` / `ProcessBatchOptions` / `ProcessBatchResult` | Process a queue batch with bounded concurrency (consumer-side counterpart to `sendInChunks`). |
 | `createQueueErrorHandler(options)` / `CreateQueueErrorHandlerOptions` | Factory for `processBatch`'s `onError`: logs every failure; optional Sentry capture with queue/message context; optional `maxRetries` gate (report only on final attempt). |
-| `ExecutionContextLike` | Minimal `waitUntil`-only Workers execution context shape (for `withMysqlConnections` in worker entry modules without importing `./db`). |
+| `ExecutionContextLike` | Minimal `waitUntil`-only Workers execution context shape used by lifecycle-compatible APIs and deferred work helpers. |
 
 ### Data layer — `@rdlabo/workers-hono-kit/db`
 
@@ -114,12 +114,12 @@ Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via r
 
 | Export | Description |
 | --- | --- |
-| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request; `dispose()` closes them. |
+| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. Workers cleans them up at invocation end; the legacy `dispose()` is a no-op. |
 | `createMysqlDatabase(options)` | Assemble a `Database` from an already-connected Drizzle ORM + replica `QueryRunner`. |
 | `databaseFrom(orm, replica)` | Build a `Database` from an existing Drizzle instance + replica handle. |
 | `Database` / `DisposableDatabase` / `QueryRunner` / `TxOf` | The `read` / `write` / `transaction` API and its supporting types. |
-| `hyperdriveConnectionOptions(hyperdrive, overrides?)` / `HyperdriveLike` / `ExecutionContextLike` | Build mysql2 `createConnection` options from a Hyperdrive binding (`disableEval`, `decimalNumbers`, `timezone '+09:00'` by default). `ExecutionContextLike` is the same type as the root export, re-exported here so `withMysqlConnections` callers don't need the root import. |
-| `withMysqlConnections(...)` | Open primary/replica connections, run a function, close them in `finally` (via `ctx.waitUntil`). |
+| `hyperdriveConnectionOptions(hyperdrive, overrides?)` / `HyperdriveLike` / `ExecutionContextLike` | Build mysql2 `createConnection` options from a Hyperdrive binding (`disableEval`, `decimalNumbers`, `timezone '+09:00'` by default). `timezone` controls mysql2's JavaScript `Date` conversion; it does not change the MySQL session timezone. |
+| `withMysqlConnections(...)` | Open primary/replica connections in parallel and run a function. Workers cleans them up at invocation end. |
 | `retryWhenDeadlock(fn, retries?, delay?)` | Same deadlock-retry helper as the root export. |
 | `insertIdOf` / `affectedRowsOf` / `insertedIdsOf` / `DzWriteResult` | Extract `insertId` / `affectedRows` (and derive contiguous bulk-insert ids) from a mysql2 write result. |
 | `toJstDate` / `jstTimestampParams` / `jstDatetimeParams` / `jstDateParams` | JST date/time normalization params (advanced use). |
@@ -588,12 +588,8 @@ const db = createHyperdriveDatabase({
   createOrm: (conn) => drizzle(conn, { ...DRIZZLE_ORM_OPTIONS, schema }),
 });
 
-try {
-  const rows = await db.read('SELECT * FROM users WHERE id = ?', [id]); // replica, raw SQL
-  await db.write((dz) => dz.insert(users).values({ name })); // primary, deadlock-retried
-} finally {
-  await db.dispose();
-}
+const rows = await db.read('SELECT * FROM users WHERE id = ?', [id]); // replica, raw SQL
+await db.write((dz) => dz.insert(users).values({ name })); // primary, deadlock-retried
 ```
 
 ### KV cache
