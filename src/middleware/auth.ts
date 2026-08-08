@@ -4,6 +4,28 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { getAppInfo } from '../http/app-info.js';
 import type { AppInfo } from '../http/app-info.js';
 
+/** Processing stage at which authentication middleware failed. */
+export type AuthMiddlewareFailureStage = 'token' | 'verify' | 'appInfo' | 'resolveUserId' | 'setContext';
+
+/** Safe metadata describing an authentication middleware failure without including the token. */
+export interface AuthMiddlewareFailureDetails {
+  /** Stage which rejected or failed. */
+  stage: AuthMiddlewareFailureStage;
+  /** Whether the configured token header contained a non-blank value. */
+  tokenPresent: boolean;
+}
+
+/** Expected rejection raised when the configured authentication header is absent or blank. */
+export class AuthTokenMissingError extends Error {
+  /** Stable machine-readable code for application classifiers. */
+  readonly code = 'AUTH_TOKEN_MISSING';
+
+  constructor() {
+    super('Authentication token is missing');
+    this.name = 'AuthTokenMissingError';
+  }
+}
+
 /**
  * Configuration for {@link createAuthMiddleware}.
  *
@@ -15,9 +37,18 @@ export interface AuthMiddlewareOptions<E extends Env, Verified, Id = unknown> {
   /** Header carrying the ID token. Defaults to `'x-amz-security-token'`. */
   tokenHeader?: string;
   /**
+   * Reject an absent or blank token before calling {@link AuthMiddlewareOptions.verify}.
+   *
+   * @remarks
+   * Defaults to `false` for backward compatibility: existing consumers historically receive an
+   * empty string in `verify` when the header is absent. Enable this when the application wants a
+   * typed {@link AuthTokenMissingError} and does not use an empty token as custom input.
+   */
+  rejectMissingToken?: boolean;
+  /**
    * Verify the raw token and return the decoded value or user record.
    *
-   * @param token - The raw token read from {@link AuthMiddlewareOptions.tokenHeader} (empty string if absent).
+   * @param token - The raw token, or an empty string when absent unless `rejectMissingToken` is enabled.
    * @param c - The current Hono context.
    * @returns The verified value passed to {@link AuthMiddlewareOptions.resolveUserId}/{@link AuthMiddlewareOptions.setContext}.
    * @throws If the token is invalid; rejecting/throwing triggers the failure path.
@@ -58,7 +89,17 @@ export interface AuthMiddlewareOptions<E extends Env, Verified, Id = unknown> {
    * @param c - The current Hono context.
    * @returns The failure response to send.
    */
-  onFailure?: (err: unknown, c: Context<E>) => Response;
+  onFailure?: (err: unknown, c: Context<E>, details: AuthMiddlewareFailureDetails) => Response | Promise<Response>;
+  /**
+   * Report a failed authentication attempt.
+   *
+   * @remarks
+   * When omitted, the historical behavior (`console.error(err)`) is preserved. Applications should
+   * provide this hook to suppress expected credential rejections while reporting dependency and
+   * internal failures through their normal observability path. The hook must never include raw
+   * authentication tokens in logs or telemetry.
+   */
+  reportFailure?: (err: unknown, c: Context<E>, details: AuthMiddlewareFailureDetails) => void | Promise<void>;
   /** Status used by the default `onFailure`. Defaults to `403`. */
   failureStatus?: ContentfulStatusCode;
   /** Message used by the default `onFailure`. Defaults to `'Forbidden resource'`. */
@@ -69,7 +110,7 @@ export interface AuthMiddlewareOptions<E extends Env, Verified, Id = unknown> {
  * Create an authentication middleware equivalent to a NestJS `AuthGuard` / `TokenGuard`.
  *
  * The middleware runs a fixed skeleton — read the token header, `verify`, `getAppInfo`,
- * `resolveUserId`, `setContext`, and on error `console.error` then `onFailure` — while the
+ * `resolveUserId`, `setContext`, and on error `reportFailure` then `onFailure` — while the
  * application injects the variable parts (token verification, user-id resolution, context variable
  * names, and the failure response). Omitting {@link AuthMiddlewareOptions.resolveUserId} yields a
  * token-only middleware.
@@ -99,28 +140,48 @@ export function createAuthMiddleware<E extends Env = Env, Verified = unknown, Id
 ): MiddlewareHandler<E> {
   const {
     tokenHeader = 'x-amz-security-token',
+    rejectMissingToken = false,
     verify,
     resolveUserId,
     setContext,
     onFailure,
+    reportFailure,
     failureStatus = 403,
     failureMessage = 'Forbidden resource',
   } = options;
 
   return async (c, next) => {
+    let stage: AuthMiddlewareFailureStage = 'token';
+    let tokenPresent = false;
     try {
       const token = c.req.header(tokenHeader) ?? '';
+      tokenPresent = token.trim().length > 0;
+      if (!tokenPresent && rejectMissingToken) {
+        throw new AuthTokenMissingError();
+      }
+      stage = 'verify';
       const verified = await verify(token, c);
+      stage = 'appInfo';
       const appInfo = getAppInfo(c);
+      stage = 'resolveUserId';
       const userId = resolveUserId ? await resolveUserId(verified, c, appInfo) : undefined;
+      stage = 'setContext';
       setContext(c, { verified, appInfo, userId });
     } catch (e) {
-      // Equivalent to a guard returning false → ForbiddenException('Forbidden resource'). Log the
-      // cause and, by default, throw so the app's onError renders the error body (callers can
-      // override with onFailure to return a custom response instead).
-      console.error(e);
+      const details = { stage, tokenPresent } satisfies AuthMiddlewareFailureDetails;
+      if (reportFailure) {
+        try {
+          await reportFailure(e, c, details);
+        } catch (reportingError) {
+          // Observability must never alter the authentication response.
+          console.error(reportingError);
+        }
+      } else {
+        // Preserve the historical default for consumers that have not adopted classified reporting.
+        console.error(e);
+      }
       if (onFailure) {
-        return onFailure(e, c);
+        return onFailure(e, c, details);
       }
       throw new HTTPException(failureStatus, { message: failureMessage });
     }

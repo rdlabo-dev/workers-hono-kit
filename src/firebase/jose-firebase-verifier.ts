@@ -27,6 +27,22 @@ type KeyInput = CryptoKey | KeyObject | JWK | Uint8Array | JWTVerifyGetKey;
 export const SECURETOKEN_JWK_URL =
   'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 
+/** Expected rejection for Firebase-specific claims that passed JOSE signature/claim verification. */
+export class FirebaseIdTokenValidationError extends Error {
+  /** Stable machine-readable code for authentication failure classifiers. */
+  readonly code = 'ERR_FIREBASE_ID_TOKEN_INVALID';
+
+  /**
+   * Create a Firebase ID-token validation rejection.
+   *
+   * @param claim - Firebase-specific claim which failed validation.
+   */
+  constructor(readonly claim: 'subject' | 'exp' | 'iat' | 'auth_time') {
+    super(`Firebase ID token has an invalid ${claim}`);
+    this.name = 'FirebaseIdTokenValidationError';
+  }
+}
+
 /**
  * Verifies Firebase ID tokens with `jose` RS256 against Google's securetoken JWKS, and
  * optionally looks up or deletes users via the Google Identity Toolkit REST API.
@@ -99,18 +115,18 @@ export class JoseFirebaseVerifier implements FirebaseVerifier {
       typeof key === 'function' ? await jwtVerify(idToken, key, options) : await jwtVerify(idToken, key, options);
     // Apply Firebase's documented checks beyond signature/iss/aud/exp.
     if (!payload.sub || typeof payload.sub !== 'string' || payload.sub.length > 128) {
-      throw new Error('Firebase ID token has an invalid subject');
+      throw new FirebaseIdTokenValidationError('subject');
     }
     if (!Number.isFinite(payload.exp)) {
-      throw new Error('Firebase ID token has an invalid exp');
+      throw new FirebaseIdTokenValidationError('exp');
     }
     const issuedAt = payload.iat;
     if (typeof issuedAt !== 'number' || !Number.isFinite(issuedAt) || issuedAt > now) {
-      throw new Error('Firebase ID token has an invalid iat');
+      throw new FirebaseIdTokenValidationError('iat');
     }
     const authTime = payload.auth_time;
     if (typeof authTime !== 'number' || !Number.isFinite(authTime) || authTime > now) {
-      throw new Error('Firebase ID token has an invalid auth_time');
+      throw new FirebaseIdTokenValidationError('auth_time');
     }
     return { ...payload, uid: payload.sub, email: payload.email as string | undefined };
   }

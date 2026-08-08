@@ -481,8 +481,10 @@ Repos with a custom DB error classifier (e.g. odss-mobile) pass `classify` to
 ### Auth middleware
 
 Encodes the shared skeleton (read token header → verify → `getAppInfo` → resolve user id →
-set context, with `console.error` + a configurable failure on error). Inject your own
-verify/resolver, context-variable names, and failure mode.
+set context, with configurable reporting and response hooks). Inject your own verify/resolver,
+context-variable names, and failure mode. By default a missing header remains backward compatible
+and calls `verify('')`; set `rejectMissingToken: true` to reject missing/blank input first with
+`AuthTokenMissingError`.
 
 `createAuthMiddleware<Env, Verified, Id>` is generic over your Hono `Env`, so `c.set(...)` in
 `setContext` is type-checked against your `Variables`.
@@ -492,6 +494,7 @@ import { createAuthMiddleware, createIdentityAuthFailureBody } from '@rdlabo/wor
 
 // AuthGuard: verify + resolve (and provision) the DB user id.
 const userAuth = createAuthMiddleware<AppEnv, UserRecord, number>({
+  rejectMissingToken: true,
   verify: (token) => container.firebase.verifyIdToken(token),
   resolveUserId: (record, _c, appInfo) =>
     container.auth.getUserIdFromFirebase(record, appInfo).catch(() => container.auth.createUser(record)),
@@ -500,17 +503,27 @@ const userAuth = createAuthMiddleware<AppEnv, UserRecord, number>({
     c.set('userId', userId);
     c.set('appInfo', appInfo);
   },
-  onFailure: (_error, context) =>
+  reportFailure: (error, context, { stage, tokenPresent }) => {
+    // Suppress expected credential rejection; report dependency/internal failures without tokens.
+  },
+  onFailure: (_error, context, { stage }) =>
     context.json(createIdentityAuthFailureBody(), 401),
 });
 
 // TokenGuard (login): verify only — omit resolveUserId. Override the failure if needed.
 const tokenAuth = createAuthMiddleware<AppEnv, UserRecord>({
+  rejectMissingToken: true,
   verify: (token) => container.firebase.verifyIdToken(token),
   setContext: (c, { verified }) => c.set('userRecord', verified),
   onFailure: (_e, c) => c.json(createIdentityAuthFailureBody(), 401),
 });
 ```
+
+`reportFailure(error, context, details)` receives only the stage (`token`, `verify`, `appInfo`,
+`resolveUserId`, or `setContext`) and a `tokenPresent` boolean; raw token data is never included in
+`details`. If the hook is omitted, the historical `console.error(error)` behavior remains. A reporting
+hook failure is logged but cannot change the authentication response. `onFailure` receives the same
+details as its third argument and may be asynchronous.
 
 Authentication failures use three explicit scopes. Only `identity` permits a client to purge its
 global authenticated session, offline replica boundary, and outbox. `reauthentication` means the

@@ -24,8 +24,12 @@ export type {
   SentryScopeLike,
 } from './middleware/validation.js';
 export { zNum, zNumNullable, zNumOptional, zNumWithDefault } from './middleware/zod-coerce.js';
-export { createAuthMiddleware } from './middleware/auth.js';
-export type { AuthMiddlewareOptions } from './middleware/auth.js';
+export { AuthTokenMissingError, createAuthMiddleware } from './middleware/auth.js';
+export type {
+  AuthMiddlewareFailureDetails,
+  AuthMiddlewareFailureStage,
+  AuthMiddlewareOptions,
+} from './middleware/auth.js';
 export { perfLog } from './middleware/perf-log.js';
 export type { PerfLogOptions, AnalyticsEngineDatasetLike } from './middleware/perf-log.js';
 export {
@@ -224,7 +228,11 @@ export type { GetTemporaryCredentialsOptions, StsCredentials } from './aws/sts.j
 
 // firebase
 export type { DecodedIdToken, FirebaseVerifier } from './firebase/firebase-verifier.js';
-export { JoseFirebaseVerifier, SECURETOKEN_JWK_URL } from './firebase/jose-firebase-verifier.js';
+export {
+  FirebaseIdTokenValidationError,
+  JoseFirebaseVerifier,
+  SECURETOKEN_JWK_URL,
+} from './firebase/jose-firebase-verifier.js';
 export { IdentityToolkit } from './firebase/identity-toolkit.js';
 export type { ServiceAccount } from './firebase/identity-toolkit.js';
 export { createRemoteFirebaseVerifier, createServiceAccountVerifier } from './firebase/remote-verifier.js';

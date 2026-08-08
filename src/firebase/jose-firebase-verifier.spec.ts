@@ -2,6 +2,7 @@ import { CompactSign, SignJWT, generateKeyPair } from 'jose';
 import { describe, it, expect, vi } from 'vitest';
 import type { IdentityToolkit } from './identity-toolkit.js';
 import { JoseFirebaseVerifier } from './jose-firebase-verifier.js';
+import type { FirebaseIdTokenValidationError } from './jose-firebase-verifier.js';
 
 // jose v6: generateKeyPair yields CryptoKey; derive the type instead of the removed KeyLike.
 type SignKey = Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
@@ -91,6 +92,11 @@ describe('JoseFirebaseVerifier (Firebase ID-token validation requirements)', () 
     const { verifier, privateKey } = await makeVerifier();
     const token = await sign(privateKey, { sub: 'x'.repeat(129) });
     await expect(verifier.verifyIdToken(token)).rejects.toThrow('invalid subject');
+    await expect(verifier.verifyIdToken(token)).rejects.toMatchObject({
+      name: 'FirebaseIdTokenValidationError',
+      code: 'ERR_FIREBASE_ID_TOKEN_INVALID',
+      claim: 'subject',
+    } satisfies Partial<FirebaseIdTokenValidationError>);
   });
 
   it('rejects an auth_time in the future', async () => {
