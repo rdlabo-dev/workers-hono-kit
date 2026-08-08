@@ -25,7 +25,7 @@ describe('processBatch', () => {
     const handler = vi.fn(async () => undefined);
     const result = await processBatch(createBatch(messages), handler);
 
-    expect(result).toEqual({ processed: 2, failed: 0 });
+    expect(result).toEqual({ processed: 2, discarded: 0, failed: 0 });
     expect(handler).toHaveBeenCalledTimes(2);
     for (const m of messages) {
       expect(m.ack).toHaveBeenCalledOnce();
@@ -50,7 +50,7 @@ describe('processBatch', () => {
     });
     const result = await processBatch(createBatch(messages), handler, { onError });
 
-    expect(result).toEqual({ processed: 2, failed: 1 });
+    expect(result).toEqual({ processed: 2, discarded: 0, failed: 1 });
     expect(messages[0].ack).toHaveBeenCalledOnce();
     expect(messages[1].ack).not.toHaveBeenCalled();
     expect(messages[1].retry).toHaveBeenCalledOnce();
@@ -89,10 +89,30 @@ describe('processBatch', () => {
     });
     const result = await processBatch(createBatch(messages), handler, { onError: throwingOnError });
 
-    expect(result).toEqual({ processed: 2, failed: 1 });
+    expect(result).toEqual({ processed: 2, discarded: 0, failed: 1 });
     expect(messages[0].retry).toHaveBeenCalledOnce();
     expect(messages[1].ack).toHaveBeenCalledOnce();
     expect(messages[2].ack).toHaveBeenCalledOnce();
+  });
+
+  it('retryable=false の恒久エラーは報告して ack し、retry/DLQ を消費しない', async () => {
+    const messages = [createMessage('permanent', 1), createMessage('next', 2)];
+    const error = Object.assign(new Error('customer mapping is missing'), { retryable: false as const });
+    const onError = vi.fn();
+    const handler = vi.fn(async (body: number) => {
+      if (body === 1) {
+        throw error;
+      }
+    });
+
+    const result = await processBatch(createBatch(messages), handler, { onError });
+
+    expect(result).toEqual({ processed: 1, discarded: 1, failed: 0 });
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledWith(error, messages[0]);
+    expect(messages[0].ack).toHaveBeenCalledOnce();
+    expect(messages[0].retry).not.toHaveBeenCalled();
+    expect(messages[1].ack).toHaveBeenCalledOnce();
   });
 
   it('1 invocation の外部呼び出し数はバッチ長で bound される', async () => {

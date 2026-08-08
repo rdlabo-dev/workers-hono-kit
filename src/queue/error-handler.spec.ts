@@ -51,6 +51,22 @@ describe('createQueueErrorHandler', () => {
     vi.restoreAllMocks();
   });
 
+  it('captures non-retryable failures immediately even when retry noise is gated', () => {
+    const captureException = vi.fn();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const onError = createQueueErrorHandler({
+      queue: 'payment-reload',
+      maxRetries: 3,
+      captureException,
+    });
+    const error = Object.assign(new Error('permanent'), { retryable: false as const });
+
+    onError(error, fakeMessage({ attempts: 1 }));
+
+    expect(captureException).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+  });
+
   it('wires sentry when provided', () => {
     const captureException = vi.fn();
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
