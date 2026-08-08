@@ -7,8 +7,8 @@
  * `max_batch_size`, each invocation performs a fixed, small number of external calls no matter how
  * many messages are backed up in the queue. {@link processBatch} applies the standard
  * ack-on-success / retry-on-failure discipline so one poison message does not fail its whole batch.
- * Errors explicitly tagged with `retryable: false` are reported and acknowledged because delivering
- * the same payload again cannot make them converge.
+ * Errors explicitly tagged with `queueDisposition: 'discard'` are reported and acknowledged because
+ * delivering the same payload again cannot make them converge.
  *
  * Messages are processed sequentially. This keeps the number of *simultaneously open* subrequests at
  * one, staying well clear of the Workers concurrent-connection ceiling, and makes the per-invocation
@@ -71,6 +71,8 @@ export interface ProcessBatchOptions<Body = unknown> {
   /**
    * Invoked when `handler` throws for a message, before the message is retried or acknowledged as a
    * permanent failure. Use it to log or report; it must not throw. Defaults to `console.error`.
+   * If a custom hook does throw, `processBatch` emits a console fallback and still applies the
+   * original error's disposition so a telemetry outage cannot turn a poison message into retries.
    */
   onError?: (error: unknown, message: QueueMessageLike<Body>) => void;
   /**
@@ -99,13 +101,15 @@ export interface ProcessBatchResult {
  * transport decision: it reports the failure through `onError`, acknowledges the message, and does
  * not spend retries or dead-letter capacity on it.
  */
-export interface NonRetryableErrorLike {
-  readonly retryable: false;
+export interface NonRetryableQueueErrorLike {
+  readonly queueDisposition: 'discard';
 }
 
 /** Return whether an unknown thrown value explicitly opts out of queue retry. */
-export function isNonRetryableError(error: unknown): error is NonRetryableErrorLike {
-  return typeof error === 'object' && error !== null && 'retryable' in error && error.retryable === false;
+export function isNonRetryableQueueError(error: unknown): error is NonRetryableQueueErrorLike {
+  return (
+    typeof error === 'object' && error !== null && 'queueDisposition' in error && error.queueDisposition === 'discard'
+  );
 }
 
 /**
@@ -113,8 +117,8 @@ export function isNonRetryableError(error: unknown): error is NonRetryableErrorL
  * retrying transient or unclassified failures.
  *
  * Each message is passed to `handler`; if it resolves the message is acked. A thrown error is routed
- * to {@link ProcessBatchOptions.onError}; errors tagged with `retryable: false` are then acked and
- * counted as discarded, while all other errors are marked for retry (honoring
+ * to {@link ProcessBatchOptions.onError}; errors tagged with `queueDisposition: 'discard'` are then
+ * acked and counted as discarded, while all other errors are marked for retry (honoring
  * {@link ProcessBatchOptions.retryDelaySeconds}). One failing message never affects the others, and
  * the returned counts let tests assert that the per-invocation workload — and therefore the
  * subrequest count — stayed bounded by the batch size.
@@ -158,10 +162,17 @@ export async function processBatch<Body>(
     } catch (error) {
       try {
         onError(error, message);
-      } catch {
-        // onError contract says "must not throw"; guard defensively so disposition and remaining messages still run.
+      } catch (reportingError) {
+        // Reporting is best-effort. Preserve the domain error's disposition, but never let a broken
+        // custom reporter make a permanent failure disappear without any local trace.
+        console.error(
+          `[queue:${batch.queue}] onError failed for message ${message.id}`,
+          reportingError,
+          'original error:',
+          error,
+        );
       }
-      if (isNonRetryableError(error)) {
+      if (isNonRetryableQueueError(error)) {
         message.ack();
         discarded++;
         continue;

@@ -79,6 +79,7 @@ describe('processBatch', () => {
 
   it('onError が例外を投げても retry と残メッセージ処理が継続する', async () => {
     const messages = [createMessage('a', 1), createMessage('b', 2), createMessage('c', 3)];
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const handler = vi.fn(async (body: number) => {
       if (body === 1) {
         throw new Error('handler fail');
@@ -93,11 +94,13 @@ describe('processBatch', () => {
     expect(messages[0].retry).toHaveBeenCalledOnce();
     expect(messages[1].ack).toHaveBeenCalledOnce();
     expect(messages[2].ack).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledOnce();
+    errorSpy.mockRestore();
   });
 
-  it('retryable=false の恒久エラーは報告して ack し、retry/DLQ を消費しない', async () => {
+  it("queueDisposition='discard' の恒久エラーは報告して ack し、retry/DLQ を消費しない", async () => {
     const messages = [createMessage('permanent', 1), createMessage('next', 2)];
-    const error = Object.assign(new Error('customer mapping is missing'), { retryable: false as const });
+    const error = Object.assign(new Error('customer mapping is missing'), { queueDisposition: 'discard' as const });
     const onError = vi.fn();
     const handler = vi.fn(async (body: number) => {
       if (body === 1) {
@@ -113,6 +116,56 @@ describe('processBatch', () => {
     expect(messages[0].ack).toHaveBeenCalledOnce();
     expect(messages[0].retry).not.toHaveBeenCalled();
     expect(messages[1].ack).toHaveBeenCalledOnce();
+  });
+
+  it('他ライブラリの retryable=false は Queue の discard 指示と誤認しない', async () => {
+    const message = createMessage('sdk-error', 1);
+    const error = Object.assign(new Error('upstream retry policy'), { retryable: false as const });
+
+    const result = await processBatch(
+      createBatch([message]),
+      async () => {
+        throw error;
+      },
+      { onError: vi.fn() },
+    );
+
+    expect(result).toEqual({ processed: 0, discarded: 0, failed: 1 });
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(message.retry).toHaveBeenCalledOnce();
+  });
+
+  it('恒久エラーの onError が失敗しても console fallback 後に ack し、後続処理を続ける', async () => {
+    const messages = [createMessage('permanent', 1), createMessage('next', 2)];
+    const permanent = Object.assign(new Error('permanent'), { queueDisposition: 'discard' as const });
+    const reportingError = new Error('reporter unavailable');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const result = await processBatch(
+      createBatch(messages),
+      async (body) => {
+        if (body === 1) {
+          throw permanent;
+        }
+      },
+      {
+        onError: () => {
+          throw reportingError;
+        },
+      },
+    );
+
+    expect(result).toEqual({ processed: 1, discarded: 1, failed: 0 });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[queue:test-queue] onError failed for message permanent',
+      reportingError,
+      'original error:',
+      permanent,
+    );
+    expect(messages[0].ack).toHaveBeenCalledOnce();
+    expect(messages[0].retry).not.toHaveBeenCalled();
+    expect(messages[1].ack).toHaveBeenCalledOnce();
+    errorSpy.mockRestore();
   });
 
   it('1 invocation の外部呼び出し数はバッチ長で bound される', async () => {

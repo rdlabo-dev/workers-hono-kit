@@ -194,11 +194,11 @@ export { retryWhenDeadlock } from './db/retry.js';
 // queue
 export { sendInChunks } from './queue/send.js';
 export type { QueueLike, QueueSendMessage } from './queue/send.js';
-export { isNonRetryableError, processBatch } from './queue/consumer.js';
+export { isNonRetryableQueueError, processBatch } from './queue/consumer.js';
 export type {
   QueueMessageLike,
   MessageBatchLike,
-  NonRetryableErrorLike,
+  NonRetryableQueueErrorLike,
   ProcessBatchOptions,
   ProcessBatchResult,
 } from './queue/consumer.js';

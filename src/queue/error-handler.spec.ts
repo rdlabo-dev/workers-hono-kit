@@ -28,7 +28,7 @@ describe('createQueueErrorHandler', () => {
 
     expect(errorSpy).toHaveBeenCalled();
     expect(captureException).toHaveBeenCalledWith(error, {
-      tags: { queue: 'payment-reload', queue_message_id: 'fail-1' },
+      tags: { queue: 'payment-reload', queue_message_id: 'fail-1', queue_disposition: 'retry' },
       extra: { attempts: 2, body: { userId: 1 } },
     });
     errorSpy.mockRestore();
@@ -59,11 +59,14 @@ describe('createQueueErrorHandler', () => {
       maxRetries: 3,
       captureException,
     });
-    const error = Object.assign(new Error('permanent'), { retryable: false as const });
+    const error = Object.assign(new Error('permanent'), { queueDisposition: 'discard' as const });
 
     onError(error, fakeMessage({ attempts: 1 }));
 
-    expect(captureException).toHaveBeenCalledOnce();
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { queue: 'payment-reload', queue_message_id: 'msg-1', queue_disposition: 'discard' },
+      extra: { attempts: 1, body: { userId: 1 } },
+    });
     vi.restoreAllMocks();
   });
 
