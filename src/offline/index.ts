@@ -13,3 +13,14 @@ export { defineRestDbMethodConverter } from './rest-db-method-converter.js';
 export type { CompleteRestDbTableScheme, RestDbMethodConverter } from './rest-db-method-converter.js';
 export { decodeOfflineSnapshotCursor, encodeOfflineSnapshotCursor } from './snapshot-cursor.js';
 export type { OfflineSnapshotCursor } from './snapshot-cursor.js';
+export {
+  assertOfflineJournalCursorRetained,
+  compactOfflineJournal,
+  OfflineJournalRebaselineRequiredError,
+} from './journal-retention.js';
+export type {
+  CompactOfflineJournalOptions,
+  OfflineJournalRetentionCandidate,
+  OfflineJournalRetentionStore,
+  OfflineJournalRetentionTransaction,
+} from './journal-retention.js';
