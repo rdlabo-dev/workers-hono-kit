@@ -61,6 +61,29 @@ describe('offline journal retention', () => {
     expect(deleteCandidates).not.toHaveBeenCalled();
   });
 
+  it('uses locale-independent code-unit ordering for scope locks', async () => {
+    const lockScopes = vi.fn(async (scopes: readonly string[]) => scopes);
+    await compactOfflineJournal({
+      store: {
+        transaction: (operation) =>
+          operation({
+            listCandidates: async () => [
+              { cursor: 1, scope: 'ä' },
+              { cursor: 2, scope: 'z' },
+              { cursor: 3, scope: 'a' },
+            ],
+            lockScopes,
+            advanceFloors: async () => undefined,
+            deleteCandidates: async () => undefined,
+          }),
+      },
+      cutoff: new Date(),
+      limit: 3,
+      scopeKey: String,
+    });
+    expect(lockScopes).toHaveBeenCalledWith(['a', 'z', 'ä']);
+  });
+
   it('rejects expired cursors and malformed boundaries before a delta read', () => {
     expect(() => {
       assertOfflineJournalCursorRetained(4, 5);

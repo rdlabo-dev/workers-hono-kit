@@ -1,11 +1,14 @@
 /** One retained product journal row considered for bounded cleanup. */
 export interface OfflineJournalRetentionCandidate<TScope> {
+  /** Monotonic journal position that becomes a client delta cursor. */
   readonly cursor: number;
+  /** Product-defined authorization and retention partition. */
   readonly scope: TScope;
 }
 
 /** Storage operations that must share one database transaction. */
 export interface OfflineJournalRetentionTransaction<TScope> {
+  /** Selects the oldest bounded cleanup candidates. */
   listCandidates(cutoff: Date, limit: number): Promise<readonly OfflineJournalRetentionCandidate<TScope>[]>;
   /** Locks existing scopes against concurrent pull floor validation. */
   lockScopes(scopes: readonly TScope[]): Promise<readonly TScope[]>;
@@ -17,12 +20,17 @@ export interface OfflineJournalRetentionTransaction<TScope> {
 
 /** Product adapter that owns schema-specific persistence and transaction creation. */
 export interface OfflineJournalRetentionStore<TScope> {
+  /** Runs the complete retention state machine in one database transaction. */
   transaction<T>(operation: (tx: OfflineJournalRetentionTransaction<TScope>) => Promise<T>): Promise<T>;
 }
 
+/** Inputs for one bounded offline journal compaction pass. */
 export interface CompactOfflineJournalOptions<TScope> {
+  /** Product adapter that owns persistence and transaction creation. */
   readonly store: OfflineJournalRetentionStore<TScope>;
+  /** Exclusive upper time boundary of journal rows eligible for cleanup. */
   readonly cutoff: Date;
+  /** Maximum number of journal rows compacted in one pass. */
   readonly limit: number;
   /** Canonical identity used to deduplicate and compare product scopes. */
   readonly scopeKey: (scope: TScope) => string;
@@ -63,7 +71,7 @@ export function compactOfflineJournal<TScope>(options: CompactOfflineJournalOpti
 
     const scopeByKey = new Map(candidates.map((candidate) => [options.scopeKey(candidate.scope), candidate.scope]));
     const scopes = [...scopeByKey.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareCanonicalKeys(left, right))
       .map(([, scope]) => scope);
     const lockedKeys = new Set((await tx.lockScopes(scopes)).map(options.scopeKey));
     const floorByKey = new Map<string, { scope: TScope; cursor: number }>();
@@ -79,12 +87,18 @@ export function compactOfflineJournal<TScope>(options: CompactOfflineJournalOpti
     }
     if (floorByKey.size > 0) {
       await tx.advanceFloors(
-        [...floorByKey.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, floor]) => floor),
+        [...floorByKey.entries()]
+          .sort(([left], [right]) => compareCanonicalKeys(left, right))
+          .map(([, floor]) => floor),
       );
     }
     await tx.deleteCandidates(candidates.map((candidate) => candidate.cursor));
     return candidates.length;
   });
+}
+
+function compareCanonicalKeys(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function assertCandidates<TScope>(candidates: readonly OfflineJournalRetentionCandidate<TScope>[]): void {
