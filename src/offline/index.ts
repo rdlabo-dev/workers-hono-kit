@@ -24,3 +24,9 @@ export type {
   OfflineJournalRetentionStore,
   OfflineJournalRetentionTransaction,
 } from './journal-retention.js';
+export { assertOfflineJournalCoverage, runOfflineJournalMutation } from './journal-mutation.js';
+export type {
+  OfflineJournalMutationChange,
+  OfflineJournalMutationStore,
+  OfflineJournalMutationTransaction,
+} from './journal-mutation.js';
