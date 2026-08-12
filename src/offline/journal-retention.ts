@@ -78,7 +78,9 @@ export function compactOfflineJournal<TScope>(options: CompactOfflineJournalOpti
       }
     }
     if (floorByKey.size > 0) {
-      await tx.advanceFloors([...floorByKey.values()]);
+      await tx.advanceFloors(
+        [...floorByKey.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, floor]) => floor),
+      );
     }
     await tx.deleteCandidates(candidates.map((candidate) => candidate.cursor));
     return candidates.length;

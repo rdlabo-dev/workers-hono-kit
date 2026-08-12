@@ -35,7 +35,7 @@ describe('offline journal retention', () => {
     });
 
     expect(count).toBe(4);
-    expect(calls).toEqual(['lock:10,20,30', 'floor:20=9,10=5', 'delete:7,5,9,11']);
+    expect(calls).toEqual(['lock:10,20,30', 'floor:10=5,20=9', 'delete:7,5,9,11']);
   });
 
   it('does no locking or deletion for an empty batch', async () => {
