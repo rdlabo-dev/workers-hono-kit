@@ -63,6 +63,84 @@ export class IdempotencyInFlightError extends Error {
 /** Result returned by the store reservation step. */
 export type IdempotencyReservation<TResponse> = { kind: 'acquired' } | { kind: 'replay'; response: TResponse };
 
+/** Locked persistence state for one leased idempotency key. */
+export type LeasedIdempotencyRecord<TResponse> =
+  | {
+      /** The operation is currently owned by one processing token. */
+      state: 'processing';
+      /** Canonical payload hash stored with the key. */
+      payloadHash: string;
+      /** Token of the current processing owner. */
+      processingToken: string;
+      /** Whether the current owner's lease may be reclaimed. */
+      leaseExpired: boolean;
+    }
+  | {
+      /** The operation completed and its response is replayable. */
+      state: 'completed';
+      /** Canonical payload hash stored with the key. */
+      payloadHash: string;
+      /** Persisted response returned to retries. */
+      response: TResponse;
+    };
+
+/** Persistence primitives used by the shared leased-idempotency state machine. */
+export interface LeasedIdempotencyStore<TScope extends IdempotencyScope, TResponse> {
+  /** Insert a processing row if the scoped key does not already exist. */
+  insertProcessing(input: IdempotencyInput<TScope>, processingToken: string): Promise<void>;
+  /** Lock and return the scoped key after the insert attempt. */
+  lock(input: IdempotencyInput<TScope>): Promise<LeasedIdempotencyRecord<TResponse>>;
+  /** Atomically replace an expired processing token and restart its lease. */
+  reclaim(input: IdempotencyInput<TScope>, previousToken: string, processingToken: string): Promise<boolean>;
+  /** Persist the response only while `processingToken` still owns the key. */
+  complete(input: IdempotencyInput<TScope>, processingToken: string, response: TResponse): Promise<boolean>;
+  /** Remove an uncommitted reservation only while `processingToken` still owns it. */
+  release(input: IdempotencyInput<TScope>, processingToken: string): Promise<void>;
+}
+
+/** Result of reserving a leased idempotency key. */
+export type LeasedIdempotencyReservation<TResponse> =
+  | { kind: 'acquired'; processingToken: string }
+  | { kind: 'replay'; response: TResponse };
+
+/** Reserve, replay, or safely reclaim one leased idempotency key. */
+export async function reserveLeasedIdempotency<TScope extends IdempotencyScope, TResponse>(
+  store: LeasedIdempotencyStore<TScope, TResponse>,
+  input: IdempotencyInput<TScope>,
+): Promise<LeasedIdempotencyReservation<TResponse>> {
+  const processingToken = crypto.randomUUID();
+  await store.insertProcessing(input, processingToken);
+  const record = await store.lock(input);
+  if (record.payloadHash !== input.payloadHash) {
+    throw new IdempotencyConflictError();
+  }
+  if (record.state === 'completed') {
+    return { kind: 'replay', response: record.response };
+  }
+  if (record.processingToken === processingToken) {
+    return { kind: 'acquired', processingToken };
+  }
+  if (!record.leaseExpired) {
+    throw new IdempotencyInFlightError();
+  }
+  if (!(await store.reclaim(input, record.processingToken, processingToken))) {
+    throw new IdempotencyInFlightError('Idempotent request ownership changed during lease reclaim');
+  }
+  return { kind: 'acquired', processingToken };
+}
+
+/** Complete a leased idempotent operation without accepting a stale owner. */
+export async function completeLeasedIdempotency<TScope extends IdempotencyScope, TResponse>(
+  store: LeasedIdempotencyStore<TScope, TResponse>,
+  input: IdempotencyInput<TScope>,
+  processingToken: string,
+  response: TResponse,
+): Promise<void> {
+  if (!(await store.complete(input, processingToken, response))) {
+    throw new IdempotencyInFlightError('Idempotent request ownership was lost before completion');
+  }
+}
+
 /** Transaction-bound persistence operations required by {@link runIdempotentMutation}. */
 export interface IdempotentMutationStore<TScope extends IdempotencyScope, TResponse> {
   /** Atomically reserve a key or return its previously completed response. */

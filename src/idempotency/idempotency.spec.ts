@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   canonicalJson,
+  completeLeasedIdempotency,
   createIdempotencyInput,
   IdempotencyConflictError,
   IdempotencyInFlightError,
   IdempotencyKeyValidationError,
   IdempotencyPayloadValidationError,
   runIdempotentMutation,
+  reserveLeasedIdempotency,
   sha256CanonicalJson,
   withIdempotencyHttpErrors,
 } from './idempotency.js';
@@ -105,6 +107,112 @@ describe('idempotency standard', () => {
       }),
     ).resolves.toEqual({ id: 8 });
     expect(calls).toEqual(['reserve', 'mutate', 'complete']);
+  });
+
+  it('acquires a newly inserted leased idempotency key', async () => {
+    const input = { key: 'create-1', payloadHash: 'hash', scope: { userId: 1 } };
+    let insertedToken = '';
+    const reservation = await reserveLeasedIdempotency(
+      {
+        insertProcessing: async (_input, token) => {
+          insertedToken = token;
+        },
+        lock: async () => ({
+          state: 'processing',
+          payloadHash: 'hash',
+          processingToken: insertedToken,
+          leaseExpired: false,
+        }),
+        reclaim: vi.fn(),
+        complete: vi.fn(),
+        release: vi.fn(),
+      },
+      input,
+    );
+
+    expect(reservation).toEqual({ kind: 'acquired', processingToken: insertedToken });
+  });
+
+  it('replays completed leased idempotency responses', async () => {
+    await expect(
+      reserveLeasedIdempotency(
+        {
+          insertProcessing: vi.fn(),
+          lock: async () => ({ state: 'completed', payloadHash: 'hash', response: { id: 7 } }),
+          reclaim: vi.fn(),
+          complete: vi.fn(),
+          release: vi.fn(),
+        },
+        { key: 'create-1', payloadHash: 'hash', scope: { userId: 1 } },
+      ),
+    ).resolves.toEqual({ kind: 'replay', response: { id: 7 } });
+  });
+
+  it('reclaims only expired leased idempotency owners', async () => {
+    const reclaim = vi.fn(async () => true);
+    const reservation = await reserveLeasedIdempotency(
+      {
+        insertProcessing: vi.fn(),
+        lock: async () => ({ state: 'processing', payloadHash: 'hash', processingToken: 'old', leaseExpired: true }),
+        reclaim,
+        complete: vi.fn(),
+        release: vi.fn(),
+      },
+      { key: 'create-1', payloadHash: 'hash', scope: { userId: 1 } },
+    );
+
+    expect(reservation.kind).toBe('acquired');
+    expect(reclaim).toHaveBeenCalledWith(
+      { key: 'create-1', payloadHash: 'hash', scope: { userId: 1 } },
+      'old',
+      reservation.kind === 'acquired' ? reservation.processingToken : '',
+    );
+  });
+
+  it('rejects payload conflicts, active owners, lost reclaims, and lost completion ownership', async () => {
+    const input = { key: 'create-1', payloadHash: 'hash', scope: { userId: 1 } };
+    const base = {
+      insertProcessing: vi.fn(),
+      lock: async () => ({
+        state: 'processing' as const,
+        payloadHash: 'hash',
+        processingToken: 'old',
+        leaseExpired: false,
+      }),
+      reclaim: vi.fn(async () => false),
+      complete: vi.fn(async () => false),
+      release: vi.fn(),
+    };
+    await expect(
+      reserveLeasedIdempotency(
+        {
+          ...base,
+          lock: async () => ({ state: 'processing', payloadHash: 'other', processingToken: 'old', leaseExpired: true }),
+        },
+        input,
+      ),
+    ).rejects.toBeInstanceOf(IdempotencyConflictError);
+    await expect(
+      reserveLeasedIdempotency(
+        {
+          ...base,
+          lock: async () => ({ state: 'processing', payloadHash: 'hash', processingToken: 'old', leaseExpired: false }),
+        },
+        input,
+      ),
+    ).rejects.toBeInstanceOf(IdempotencyInFlightError);
+    await expect(
+      reserveLeasedIdempotency(
+        {
+          ...base,
+          lock: async () => ({ state: 'processing', payloadHash: 'hash', processingToken: 'old', leaseExpired: true }),
+        },
+        input,
+      ),
+    ).rejects.toThrow('ownership changed during lease reclaim');
+    await expect(completeLeasedIdempotency(base, input, 'old', { id: 7 })).rejects.toThrow(
+      'ownership was lost before completion',
+    );
   });
 
   it.each([

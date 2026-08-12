@@ -92,18 +92,23 @@ export type { AuthFailureBody, AuthFailureScope } from './http/auth-failure.js';
 // idempotency
 export {
   canonicalJson,
+  completeLeasedIdempotency,
   createIdempotencyInput,
   IdempotencyConflictError,
   IdempotencyInFlightError,
   IdempotencyKeyValidationError,
   IdempotencyPayloadValidationError,
   runIdempotentMutation,
+  reserveLeasedIdempotency,
   sha256CanonicalJson,
   withIdempotencyHttpErrors,
 } from './idempotency/idempotency.js';
 export type {
   CreateIdempotencyInputOptions,
   IdempotencyInput,
+  LeasedIdempotencyRecord,
+  LeasedIdempotencyReservation,
+  LeasedIdempotencyStore,
   IdempotencyReservation,
   IdempotencyScope,
   IdempotencyScopeValue,
