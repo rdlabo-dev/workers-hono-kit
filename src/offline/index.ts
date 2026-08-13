@@ -30,3 +30,10 @@ export type {
   OfflineJournalMutationStore,
   OfflineJournalMutationTransaction,
 } from './journal-mutation.js';
+export { defineOfflineWireCompatibility, resolveOfflineWireCompatibility } from './wire-compatibility.js';
+export type {
+  OfflineWireAcceptedFingerprint,
+  OfflineWireCompatibility,
+  OfflineWireCompatibilityResolution,
+  OfflineWireFingerprint,
+} from './wire-compatibility.js';
