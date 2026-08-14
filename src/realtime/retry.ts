@@ -49,15 +49,19 @@ export async function retryDurableObjectOperation<T>(
   const wait = options.wait ?? defaultWait;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    try {
-      return await operation(attempt);
-    } catch (error: unknown) {
-      if (!isRetryableDurableObjectError(error) || attempt + 1 >= maxAttempts) {
-        throw error;
-      }
-      const delayMs = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt * random());
-      await wait(delayMs);
+    const invoke = async () => operation(attempt);
+    const outcome = await invoke().then(
+      (value) => ({ ok: true, value }) as const,
+      (error: unknown) => ({ ok: false, error }) as const,
+    );
+    if (outcome.ok) {
+      return outcome.value;
     }
+    if (!isRetryableDurableObjectError(outcome.error) || attempt + 1 >= maxAttempts) {
+      throw outcome.error;
+    }
+    const delayMs = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt * random());
+    await wait(delayMs);
   }
 
   throw new Error('Durable Object retry exhausted');

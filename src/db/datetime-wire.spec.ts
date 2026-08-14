@@ -22,13 +22,14 @@ const pool = createPool({
   timezone: MYSQL_TIMEZONE,
 });
 
-let mysqlUp = false;
-try {
-  await pool.query('SELECT 1');
-  mysqlUp = true;
-} catch {
-  await pool.end();
-}
+const ping = async () => pool.query('SELECT 1');
+const mysqlUp = await ping().then(
+  () => true,
+  async () => {
+    await pool.end();
+    return false;
+  },
+);
 
 describe.skipIf(!mysqlUp)('JST timestamp wire contract', () => {
   beforeAll(async () => {

@@ -48,16 +48,14 @@ export function fakeQueue<Body = unknown>(): FakeQueue<Body> {
     get batchCount() {
       return batchCount;
     },
-    send(body: Body): Promise<void> {
+    async send(body: Body): Promise<void> {
       sent.push(body);
-      return Promise.resolve();
     },
-    sendBatch(messages: Iterable<QueueSendMessage<Body>>): Promise<void> {
+    async sendBatch(messages: Iterable<QueueSendMessage<Body>>): Promise<void> {
       batchCount++;
       for (const m of messages) {
         sent.push(m.body);
       }
-      return Promise.resolve();
     },
   };
 }
@@ -75,16 +73,14 @@ export function fakeQueue<Body = unknown>(): FakeQueue<Body> {
 export function fakeKv(): KVNamespace {
   const store = new Map<string, string>();
   return {
-    get: (key: string) => Promise.resolve(store.get(key) ?? null),
-    put: (key: string, value: string) => {
+    get: async (key: string) => store.get(key) ?? null,
+    put: async (key: string, value: string) => {
       store.set(key, value);
-      return Promise.resolve();
     },
-    delete: (key: string) => {
+    delete: async (key: string) => {
       store.delete(key);
-      return Promise.resolve();
     },
-    list: () => Promise.resolve({ keys: [], list_complete: true, cacheStatus: null }),
-    getWithMetadata: () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
+    list: async () => ({ keys: [], list_complete: true, cacheStatus: null }),
+    getWithMetadata: async () => ({ value: null, metadata: null, cacheStatus: null }),
   } as KVNamespace;
 }

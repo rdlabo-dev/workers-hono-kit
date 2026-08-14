@@ -7,11 +7,11 @@ let holdConnections = false;
 let pendingConnections: (() => void)[] = [];
 
 vi.mock('mysql2/promise', () => ({
-  createConnection: vi.fn((opts: Record<string, unknown>) => {
+  createConnection: vi.fn(async (opts: Record<string, unknown>) => {
     opened.push(opts);
     const connection = { end: vi.fn() };
     if (!holdConnections) {
-      return Promise.resolve(connection);
+      return connection;
     }
     return new Promise((resolve) =>
       pendingConnections.push(() => {

@@ -52,8 +52,9 @@ describe('configurableFake', () => {
   it('then/catch/finally は undefined を返す（誤って await しても thenable 罠にならない）', async () => {
     const gw = configurableFake<Gw>({ a: () => 'ok' }, 'FakeGw');
     expect((gw as unknown as { then?: unknown }).then).toBeUndefined();
-    // Promise.resolve(thenable) が then() を呼んで throw しないこと（解決値として素通り）。
-    await expect(Promise.resolve(gw)).resolves.toBe(gw);
+    // async の解決処理が thenable 判定しても throw せず、解決値として素通りすること。
+    const resolveFake = async () => gw;
+    await expect(resolveFake()).resolves.toBe(gw);
   });
 });
 

@@ -182,13 +182,16 @@ export function createTestDb(options: CreateTestDbOptions): TestDb {
     },
 
     async mysqlReachable(): Promise<boolean> {
-      try {
-        const c = await createConnection({ ...connection });
-        await c.end();
-        return true;
-      } catch {
+      const connect = async () => createConnection({ ...connection });
+      const c = await connect().catch(() => undefined);
+      if (!c) {
         return false;
       }
+      const close = async () => c.end();
+      return close().then(
+        () => true,
+        () => false,
+      );
     },
   };
 }

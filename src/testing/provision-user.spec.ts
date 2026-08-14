@@ -12,7 +12,7 @@ let pool: Pool | undefined;
 let ready = false;
 
 beforeAll(async () => {
-  try {
+  const setup = async () => {
     const root = await mysql.createConnection({ host: '127.0.0.1', port: 3306, user: 'root', password: 'root' });
     await root.query(`DROP DATABASE IF EXISTS \`${DB}\``);
     await root.query(`CREATE DATABASE \`${DB}\``);
@@ -21,10 +21,11 @@ beforeAll(async () => {
     await pool.query(
       'CREATE TABLE users (id BIGINT AUTO_INCREMENT PRIMARY KEY, firebase_uid VARCHAR(255) UNIQUE, agree INT)',
     );
-    ready = true;
-  } catch {
-    ready = false;
-  }
+  };
+  ready = await setup().then(
+    () => true,
+    () => false,
+  );
 });
 
 afterAll(async () => {

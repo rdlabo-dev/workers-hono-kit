@@ -78,13 +78,12 @@ describe('secrets-manager (aws4fetch GetSecretValue)', () => {
     const opts = { accessKeyId: 'AKIA-retry', secretAccessKey: 's', region: 'ap-northeast-1' };
     // 注: aws4fetch は 5xx レスポンスを内部 retry するため、ここでは network error（reject）で失敗させる。
     let call = 0;
-    const fetchMock = vi.fn(() => {
+    const fetchMock = vi.fn(async () => {
       call += 1;
-      return call === 1
-        ? Promise.reject(new Error('network down'))
-        : Promise.resolve(
-            new Response(JSON.stringify({ SecretString: JSON.stringify({ ok: true }) }), { status: 200 }),
-          );
+      if (call === 1) {
+        throw new Error('network down');
+      }
+      return new Response(JSON.stringify({ SecretString: JSON.stringify({ ok: true }) }), { status: 200 });
     });
     vi.stubGlobal('fetch', fetchMock);
 

@@ -225,8 +225,8 @@ export function createHyperdriveDatabase<TDrizzle>(
       return retryWhenDeadlock(() => dz.transaction(fn));
     },
     /** @deprecated Workers cleans up invocation-scoped connections automatically. */
-    dispose(): Promise<void> {
-      return Promise.resolve();
+    async dispose(): Promise<void> {
+      return;
     },
   };
 }

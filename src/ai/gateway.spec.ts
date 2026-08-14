@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAiGatewayProvider } from './gateway.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('createAiGatewayProvider', () => {
   const valid = { accountId: 'acc', gateway: 'gw', token: 'tok' };
@@ -44,19 +48,15 @@ describe('createAiGatewayProvider', () => {
       }),
     );
     const fetchMock = vi.spyOn(globalThis, 'fetch');
-    try {
-      const { generateText } = await import('ai');
-      const { aigateway } = createAiGatewayProvider({ binding: { run } });
-      await generateText({
-        model: aigateway(createAnthropic({ apiKey: 'x' })('claude-haiku-4-5-20251001')),
-        prompt: 'hi',
-      }).catch(() => undefined);
-      expect(run).toHaveBeenCalledTimes(1);
-      // binding 経由は同一アカウント内で事前認証されるため global fetch は使わない。
-      expect(fetchMock).not.toHaveBeenCalled();
-    } finally {
-      fetchMock.mockRestore();
-    }
+    const { generateText } = await import('ai');
+    const { aigateway } = createAiGatewayProvider({ binding: { run } });
+    await generateText({
+      model: aigateway(createAnthropic({ apiKey: 'x' })('claude-haiku-4-5-20251001')),
+      prompt: 'hi',
+    }).catch(() => undefined);
+    expect(run).toHaveBeenCalledTimes(1);
+    // binding 経由は同一アカウント内で事前認証されるため global fetch は使わない。
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('doGenerate は AI Gateway の Universal Endpoint へ POST する（cf-aig-authorization 付き）', async () => {
@@ -67,19 +67,15 @@ describe('createAiGatewayProvider', () => {
         headers: { 'content-type': 'application/json', 'cf-aig-step': '0' },
       }),
     );
-    try {
-      const { generateText } = await import('ai');
-      const { aigateway } = createAiGatewayProvider(valid);
-      await generateText({
-        model: aigateway(createAnthropic({ apiKey: 'x' })('claude-haiku-4-5-20251001')),
-        prompt: 'hi',
-      }).catch(() => undefined);
-      const [url, init] = fetchMock.mock.calls.at(-1) ?? [];
-      expect(url).toBe('https://gateway.ai.cloudflare.com/v1/acc/gw');
-      const headers = new Headers(init?.headers);
-      expect(headers.get('cf-aig-authorization')).toBe('Bearer tok');
-    } finally {
-      fetchMock.mockRestore();
-    }
+    const { generateText } = await import('ai');
+    const { aigateway } = createAiGatewayProvider(valid);
+    await generateText({
+      model: aigateway(createAnthropic({ apiKey: 'x' })('claude-haiku-4-5-20251001')),
+      prompt: 'hi',
+    }).catch(() => undefined);
+    const [url, init] = fetchMock.mock.calls.at(-1) ?? [];
+    expect(url).toBe('https://gateway.ai.cloudflare.com/v1/acc/gw');
+    const headers = new Headers(init?.headers);
+    expect(headers.get('cf-aig-authorization')).toBe('Bearer tok');
   });
 });
