@@ -33,6 +33,13 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^20.19.0 || ^22.13.0 || >=24.0.0",
+      "onFail": "error"
+    }
+  },
   "files": [
     "dist",
     "scripts",
@@ -120,8 +127,13 @@
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.84",
     "@ai-sdk/openai": "^3.0.71",
+    "@angular-eslint/template-parser": "^21.4.0",
+    "@angular/core": "^21.2.20",
+    "@angular/forms": "^21.2.20",
+    "@angular/router": "^21.2.20",
     "@hono/eslint-config": "^2.1.0",
     "@hono/zod-validator": "^0.8.0",
+    "@rdlabo/eslint-plugin-rules": "^21.2.6",
     "@types/node": "^22.19.21",
     "ai": "^6.0.204",
     "ai-gateway-provider": "^3.1.3",

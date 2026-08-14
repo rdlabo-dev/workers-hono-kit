@@ -41,21 +41,21 @@ describe('classifyGoogleSubscription', () => {
 
 describe('googleAccessToken / getGoogleSubscription', () => {
   it('refresh_token を access_token に交換する', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ access_token: 'tok' }) });
+    const fetchImpl = vi.fn().mockResolvedValue({ json: async () => ({ access_token: 'tok' }) });
     const tok = await googleAccessToken({ client_id: 'c', client_secret: 's', refresh_token: 'r' }, fetchImpl);
     expect(tok).toBe('tok');
     expect(fetchImpl.mock.calls[0][0]).toContain('accounts.google.com/o/oauth2/token');
   });
 
   it('access_token が無ければ throw（refresh token 失効を可視化）', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ error: 'invalid_grant' }) });
+    const fetchImpl = vi.fn().mockResolvedValue({ json: async () => ({ error: 'invalid_grant' }) });
     await expect(
       googleAccessToken({ client_id: 'c', client_secret: 's', refresh_token: 'r' }, fetchImpl),
     ).rejects.toThrow();
   });
 
   it('androidpublisher の URL を組み立て、token は Authorization ヘッダで送る（クエリに載せない）', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ expiryTimeMillis: FUTURE }) });
+    const fetchImpl = vi.fn().mockResolvedValue({ json: async () => ({ expiryTimeMillis: FUTURE }) });
     const res = await getGoogleSubscription({
       packageName: 'jp.rdlabo.app',
       subscriptionId: 'sub.standard',

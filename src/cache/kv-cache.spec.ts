@@ -46,6 +46,36 @@ class FailingKV extends FakeKV {
   }
 }
 
+class SynchronouslyFailingKV extends FakeKV {
+  constructor(
+    private readonly operation: 'read' | 'write' | 'delete',
+    private readonly error: Error,
+  ) {
+    super();
+  }
+
+  override get(key: string): Promise<string | null> {
+    if (this.operation === 'read') {
+      throw this.error;
+    }
+    return super.get(key);
+  }
+
+  override put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> {
+    if (this.operation === 'write') {
+      throw this.error;
+    }
+    return super.put(key, value, options);
+  }
+
+  override delete(key: string): Promise<void> {
+    if (this.operation === 'delete') {
+      throw this.error;
+    }
+    return super.delete(key);
+  }
+}
+
 async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -157,6 +187,23 @@ describe('KVCache', () => {
     expect(context).not.toHaveProperty('type');
     expect(context).not.toHaveProperty('key');
     expect(context).not.toHaveProperty('value');
+  });
+
+  it.each(['read', 'write', 'delete'] as const)('reports and absorbs a synchronous %s failure', async (operation) => {
+    const error = new Error(`synchronous ${operation} failure`);
+    const kv = new SynchronouslyFailingKV(operation, error);
+    const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
+    const cache = new KVCache(kv, { appName: 'test', onError });
+
+    if (operation === 'read') {
+      await expect(cache.get('users', 'byId', 1)).resolves.toBeUndefined();
+    } else if (operation === 'write') {
+      await expect(cache.set('users', 'byId', 1, { value: true })).resolves.toBeUndefined();
+    } else {
+      await expect(cache.delete('users', 'byId', 1)).resolves.toBeUndefined();
+    }
+
+    expect(onError).toHaveBeenCalledWith(error, { operation, table: 'users' });
   });
 
   it('reports parse and serialization failures separately', async () => {

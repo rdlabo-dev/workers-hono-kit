@@ -59,6 +59,42 @@ describe('processBatch', () => {
     expect(onError.mock.calls[0][1]).toBe(messages[1]);
   });
 
+  it('Promise を返す前の同期 throw も当該のみ retry し、後続処理を継続する', async () => {
+    const messages = [createMessage('a', 1), createMessage('b', 2)];
+    const error = new Error('synchronous failure');
+    const onError = vi.fn();
+    const success = async () => undefined;
+    const handler = vi.fn((body: number): Promise<void> => {
+      if (body === 1) {
+        throw error;
+      }
+      return success();
+    });
+
+    const result = await processBatch(createBatch(messages), handler, { onError });
+
+    expect(result).toEqual({ processed: 1, discarded: 0, failed: 1 });
+    expect(onError).toHaveBeenCalledWith(error, messages[0]);
+    expect(messages[0].retry).toHaveBeenCalledOnce();
+    expect(messages[1].ack).toHaveBeenCalledOnce();
+  });
+
+  it('ack の同期 throw も当該のみ retry し、後続処理を継続する', async () => {
+    const messages = [createMessage('a', 1), createMessage('b', 2)];
+    const error = new Error('ack failure');
+    messages[0].ack = vi.fn(() => {
+      throw error;
+    });
+    const onError = vi.fn();
+
+    const result = await processBatch(createBatch(messages), async () => undefined, { onError });
+
+    expect(result).toEqual({ processed: 1, discarded: 0, failed: 1 });
+    expect(onError).toHaveBeenCalledWith(error, messages[0]);
+    expect(messages[0].retry).toHaveBeenCalledOnce();
+    expect(messages[1].ack).toHaveBeenCalledOnce();
+  });
+
   it('retryDelaySeconds を retry に渡す', async () => {
     const message = createMessage('a', 1);
     const handler = vi.fn(async () => {

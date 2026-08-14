@@ -7,9 +7,15 @@ describe('defaultDefer', () => {
   it('does not report resolved promises', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => {
-      defaultDefer(Promise.resolve('ok'));
+      defaultDefer(
+        new Promise<string>((resolve) => {
+          resolve('ok');
+        }),
+      );
     }).not.toThrow();
-    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      queueMicrotask(resolve);
+    });
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -19,7 +25,9 @@ describe('defaultDefer', () => {
     expect(() => {
       defaultDefer(Promise.reject(error));
     }).not.toThrow();
-    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      queueMicrotask(resolve);
+    });
     expect(consoleError).toHaveBeenCalledWith('[defer] background task failed', error);
   });
 });

@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { validate } from './validation.js';
 import type { ValidateOptions } from './validation.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function buildApp(options?: ValidateOptions) {
   const app = new Hono();
@@ -42,36 +46,28 @@ describe('validate', () => {
 
   it('検証失敗を console.warn でログに出す（method/path/target と失敗フィールド）', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const res = await buildApp().request('/', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: 123 }),
-      });
-      expect(res.status).toBe(400);
-      expect(warn).toHaveBeenCalledTimes(1);
-      const line = warn.mock.calls[0][0] as string;
-      expect(line).toContain('[validation]');
-      expect(line).toContain('POST');
-      expect(line).toContain('(json)');
-      expect(line).toContain('age:');
-    } finally {
-      warn.mockRestore();
-    }
+    const res = await buildApp().request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 123 }),
+    });
+    expect(res.status).toBe(400);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0][0] as string;
+    expect(line).toContain('[validation]');
+    expect(line).toContain('POST');
+    expect(line).toContain('(json)');
+    expect(line).toContain('age:');
   });
 
   it('検証成功時は console.warn を呼ばない', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      await buildApp().request('/', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: 'a', age: 20 }),
-      });
-      expect(warn).not.toHaveBeenCalled();
-    } finally {
-      warn.mockRestore();
-    }
+    await buildApp().request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'a', age: 20 }),
+    });
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('query ターゲットでも検証できる', async () => {

@@ -16,7 +16,7 @@ async function makeServiceAccount(): Promise<ServiceAccount> {
 }
 
 function stubFetch(handler: (url: string) => Response) {
-  const fetchMock = vi.fn((input: string, _init?: RequestInit) => Promise.resolve(handler(input)));
+  const fetchMock = vi.fn(async (input: string, _init?: RequestInit) => handler(input));
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -72,17 +72,15 @@ describe('IdentityToolkit', () => {
   });
 
   it('lookupMany は複数 uid を 1 回の accounts:lookup で localId 配列として送る', async () => {
-    const fetchMock = vi.fn((url: string, _init?: RequestInit) => {
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
       if (url === TOKEN_URL) {
-        return Promise.resolve(tokenResponse());
+        return tokenResponse();
       }
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            users: [{ localId: 'uid1', email: 'a@b.c' }, { localId: 'uid2', email: 'd@e.f' }, { localId: 'uid3' }],
-          }),
-          { status: 200 },
-        ),
+      return new Response(
+        JSON.stringify({
+          users: [{ localId: 'uid1', email: 'a@b.c' }, { localId: 'uid2', email: 'd@e.f' }, { localId: 'uid3' }],
+        }),
+        { status: 200 },
       );
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -102,13 +100,13 @@ describe('IdentityToolkit', () => {
 
   it('lookupMany は 101 件を 100 件 + 1 件の 2 回にチャンクして結果を結合する', async () => {
     const uids = Array.from({ length: 101 }, (_, i) => `uid${i}`);
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === TOKEN_URL) {
-        return Promise.resolve(tokenResponse());
+        return tokenResponse();
       }
       const body = JSON.parse(init?.body as string) as { localId: string[] };
       const users = body.localId.map((localId) => ({ localId }));
-      return Promise.resolve(new Response(JSON.stringify({ users }), { status: 200 }));
+      return new Response(JSON.stringify({ users }), { status: 200 });
     });
     vi.stubGlobal('fetch', fetchMock);
     const client = new IdentityToolkit(await makeServiceAccount());

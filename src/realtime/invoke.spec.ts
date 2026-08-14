@@ -16,7 +16,7 @@ describe('invokeDurableObjectFetch', () => {
         getStub,
         createRequest,
         retry: true,
-        retryOptions: { random: () => 0, wait: () => Promise.resolve() },
+        retryOptions: { random: () => 0, wait: async () => undefined },
       }),
     ).resolves.toMatchObject({ status: 204 });
     expect(getStub).toHaveBeenCalledTimes(2);

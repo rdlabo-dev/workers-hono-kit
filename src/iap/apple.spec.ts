@@ -87,9 +87,7 @@ describe('classifyAppleRenewal', () => {
 
 describe('verifyAppleReceipt', () => {
   it('production が status=0 ならそれを返す（sandbox は叩かない）', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue({ json: () => Promise.resolve({ status: 0, environment: 'Production' }) });
+    const fetchImpl = vi.fn().mockResolvedValue({ json: async () => ({ status: 0, environment: 'Production' }) });
     const res = await verifyAppleReceipt('r', { password: 'p', fetchImpl: fetchImpl });
     expect(res?.environment).toBe('Production');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -99,15 +97,15 @@ describe('verifyAppleReceipt', () => {
   it('production が非0なら sandbox にフォールバックする', async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce({ json: () => Promise.resolve({ status: 21007 }) })
-      .mockResolvedValueOnce({ json: () => Promise.resolve({ status: 0, environment: 'Sandbox' }) });
+      .mockResolvedValueOnce({ json: async () => ({ status: 21007 }) })
+      .mockResolvedValueOnce({ json: async () => ({ status: 0, environment: 'Sandbox' }) });
     const res = await verifyAppleReceipt('r', { password: 'p', fetchImpl: fetchImpl });
     expect(res?.environment).toBe('Sandbox');
     expect(fetchImpl.mock.calls[1][0]).toContain('sandbox.itunes.apple.com');
   });
 
   it('両方非0なら null（無効レシート）', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ status: 21002 }) });
+    const fetchImpl = vi.fn().mockResolvedValue({ json: async () => ({ status: 21002 }) });
     expect(await verifyAppleReceipt('r', { password: 'p', fetchImpl: fetchImpl })).toBeNull();
   });
 });

@@ -155,31 +155,37 @@ export async function processBatch<Body>(
   let discarded = 0;
   let failed = 0;
   for (const message of batch.messages) {
-    try {
+    const processMessage = async () => {
       await handler(message.body, message);
       message.ack();
+    };
+    const outcome = await processMessage().then(
+      () => ({ ok: true }) as const,
+      (error: unknown) => ({ ok: false, error }) as const,
+    );
+    if (outcome.ok) {
       processed++;
-    } catch (error) {
-      try {
-        onError(error, message);
-      } catch (reportingError) {
-        // Reporting is best-effort. Preserve the domain error's disposition, but never let a broken
-        // custom reporter make a permanent failure disappear without any local trace.
-        console.error(
-          `[queue:${batch.queue}] onError failed for message ${message.id}`,
-          reportingError,
-          'original error:',
-          error,
-        );
-      }
-      if (isNonRetryableQueueError(error)) {
-        message.ack();
-        discarded++;
-        continue;
-      }
-      message.retry(retryOptions);
-      failed++;
+      continue;
     }
+    try {
+      onError(outcome.error, message);
+    } catch (reportingError) {
+      // Reporting is best-effort. Preserve the domain error's disposition, but never let a broken
+      // custom reporter make a permanent failure disappear without any local trace.
+      console.error(
+        `[queue:${batch.queue}] onError failed for message ${message.id}`,
+        reportingError,
+        'original error:',
+        outcome.error,
+      );
+    }
+    if (isNonRetryableQueueError(outcome.error)) {
+      message.ack();
+      discarded++;
+      continue;
+    }
+    message.retry(retryOptions);
+    failed++;
   }
   return { processed, discarded, failed };
 }

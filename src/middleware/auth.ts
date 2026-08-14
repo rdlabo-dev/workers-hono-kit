@@ -153,7 +153,7 @@ export function createAuthMiddleware<E extends Env = Env, Verified = unknown, Id
   return async (c, next) => {
     let stage: AuthMiddlewareFailureStage = 'token';
     let tokenPresent = false;
-    try {
+    const authenticate = async () => {
       const token = c.req.header(tokenHeader) ?? '';
       tokenPresent = token.trim().length > 0;
       if (!tokenPresent && rejectMissingToken) {
@@ -167,21 +167,25 @@ export function createAuthMiddleware<E extends Env = Env, Verified = unknown, Id
       const userId = resolveUserId ? await resolveUserId(verified, c, appInfo) : undefined;
       stage = 'setContext';
       setContext(c, { verified, appInfo, userId });
-    } catch (e) {
+    };
+    const outcome = await authenticate().then(
+      () => ({ ok: true }) as const,
+      (error: unknown) => ({ ok: false, error }) as const,
+    );
+    if (!outcome.ok) {
       const details = { stage, tokenPresent } satisfies AuthMiddlewareFailureDetails;
       if (reportFailure) {
-        try {
-          await reportFailure(e, c, details);
-        } catch (reportingError) {
+        const report = async () => reportFailure(outcome.error, c, details);
+        await report().catch((reportingError: unknown) => {
           // Observability must never alter the authentication response.
           console.error(reportingError);
-        }
+        });
       } else {
         // Preserve the historical default for consumers that have not adopted classified reporting.
-        console.error(e);
+        console.error(outcome.error);
       }
       if (onFailure) {
-        return onFailure(e, c, details);
+        return onFailure(outcome.error, c, details);
       }
       throw new HTTPException(failureStatus, { message: failureMessage });
     }

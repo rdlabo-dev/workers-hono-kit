@@ -225,13 +225,11 @@ export class KVCache {
     if (!key) {
       return undefined;
     }
-    let data: string | null;
-    try {
-      data = await this.#kv.get(key);
-    } catch (error) {
+    const read = async () => this.#kv.get(key);
+    const data = await read().catch((error: unknown) => {
       this.#reportError(error, { operation: 'read', table });
-      return undefined;
-    }
+      return null;
+    });
     if (!data) {
       return undefined;
     }
@@ -287,7 +285,8 @@ export class KVCache {
       return;
     }
     const ttl = Math.max(this.#minTtl, lifetime ?? this.#defaultLifetime);
-    await this.#kv.put(key, payload, { expirationTtl: ttl }).catch((error: unknown) => {
+    const write = async () => this.#kv.put(key, payload, { expirationTtl: ttl });
+    await write().catch((error: unknown) => {
       this.#reportError(error, { operation: 'write', table });
     });
   }
@@ -354,7 +353,8 @@ export class KVCache {
     if (!key) {
       return;
     }
-    await this.#kv.delete(key).catch((error: unknown) => {
+    const remove = async () => this.#kv.delete(key);
+    await remove().catch((error: unknown) => {
       this.#reportError(error, { operation: 'delete', table });
     });
   }

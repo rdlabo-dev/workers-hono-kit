@@ -27,16 +27,20 @@
  */
 export async function retryWhenDeadlock<T>(fn: () => Promise<T>, retries = 3, delay = 100): Promise<T> {
   for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      if (code === 'ER_LOCK_DEADLOCK' && attempt < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delay * (attempt + 1)));
-        continue;
-      }
-      throw error;
+    const invoke = async () => fn();
+    const outcome = await invoke().then(
+      (value) => ({ ok: true, value }) as const,
+      (error: unknown) => ({ ok: false, error }) as const,
+    );
+    if (outcome.ok) {
+      return outcome.value;
     }
+    const code = (outcome.error as { code?: string }).code;
+    if (code === 'ER_LOCK_DEADLOCK' && attempt < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delay * (attempt + 1)));
+      continue;
+    }
+    throw outcome.error;
   }
   // Unreachable: the loop returns on success and throws on the final failed attempt.
   throw new Error('retryWhenDeadlock: exhausted retries');

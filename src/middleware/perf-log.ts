@@ -150,12 +150,13 @@ export function perfLog(options: PerfLogOptions = {}): MiddlewareHandler {
     // In-code sampling thins Analytics Engine writes only; Workers Logs volume is controlled separately
     // by the observability `head_sampling_rate`. Low-traffic Workers should leave `sampleRate` at 1.
     if (sink && (rate >= 1 || Math.random() < rate)) {
+      const point = {
+        doubles: [tApp, cold ? 1 : 0, status],
+        blobs: [path, colo, method],
+        indexes: [analyticsIndex(path)],
+      };
       try {
-        sink.writeDataPoint({
-          doubles: [tApp, cold ? 1 : 0, status],
-          blobs: [path, colo, method],
-          indexes: [analyticsIndex(path)],
-        });
+        sink.writeDataPoint(point);
       } catch (error) {
         // Telemetry must never replace an otherwise successful application response with a 500.
         console.warn('[perfLog] Analytics Engine write failed', error);
