@@ -353,7 +353,8 @@ export class KVCache {
     if (!key) {
       return;
     }
-    await this.#kv.delete(key).catch((error: unknown) => {
+    const remove = async () => this.#kv.delete(key);
+    await remove().catch((error: unknown) => {
       this.#reportError(error, { operation: 'delete', table });
     });
   }

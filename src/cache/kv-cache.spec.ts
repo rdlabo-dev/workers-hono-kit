@@ -48,7 +48,7 @@ class FailingKV extends FakeKV {
 
 class SynchronouslyFailingKV extends FakeKV {
   constructor(
-    private readonly operation: 'read' | 'write',
+    private readonly operation: 'read' | 'write' | 'delete',
     private readonly error: Error,
   ) {
     super();
@@ -66,6 +66,13 @@ class SynchronouslyFailingKV extends FakeKV {
       throw this.error;
     }
     return super.put(key, value, options);
+  }
+
+  override delete(key: string): Promise<void> {
+    if (this.operation === 'delete') {
+      throw this.error;
+    }
+    return super.delete(key);
   }
 }
 
@@ -182,7 +189,7 @@ describe('KVCache', () => {
     expect(context).not.toHaveProperty('value');
   });
 
-  it.each(['read', 'write'] as const)('reports and absorbs a synchronous %s failure', async (operation) => {
+  it.each(['read', 'write', 'delete'] as const)('reports and absorbs a synchronous %s failure', async (operation) => {
     const error = new Error(`synchronous ${operation} failure`);
     const kv = new SynchronouslyFailingKV(operation, error);
     const onError = vi.fn<(error: unknown, context: KVCacheErrorContext) => void>();
@@ -190,8 +197,10 @@ describe('KVCache', () => {
 
     if (operation === 'read') {
       await expect(cache.get('users', 'byId', 1)).resolves.toBeUndefined();
-    } else {
+    } else if (operation === 'write') {
       await expect(cache.set('users', 'byId', 1, { value: true })).resolves.toBeUndefined();
+    } else {
+      await expect(cache.delete('users', 'byId', 1)).resolves.toBeUndefined();
     }
 
     expect(onError).toHaveBeenCalledWith(error, { operation, table: 'users' });
