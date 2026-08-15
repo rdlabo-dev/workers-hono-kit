@@ -2,6 +2,8 @@
 
 Infrastructure toolkit for building APIs on [Hono](https://hono.dev) + [Cloudflare Workers](https://workers.cloudflare.com).
 
+**Documentation:** [Read the full documentation](https://docs.rdlabo.dev/projects/workers-hono-kit)
+
 It provides Workers-oriented building blocks for a NestJS-style API, plus middleware for common HTTP response concerns:
 
 - **Firebase ID-token verification** on Workers via [`jose`](https://github.com/panva/jose) (RS256 against Google's securetoken JWKS), with optional Identity Toolkit REST for `getUser` / `deleteUser`.
