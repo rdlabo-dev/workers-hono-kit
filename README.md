@@ -137,14 +137,13 @@ Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via r
 | `insertIdOf` / `affectedRowsOf` / `insertedIdsOf` / `DzWriteResult` | Extract `insertId` / `affectedRows` (and derive contiguous bulk-insert ids) from a mysql2 write result. |
 | `toJstDate` / `jstTimestampParams` / `jstDatetimeParams` / `jstDateParams` | JST date/time normalization params (advanced use). |
 | `MYSQL_TIMEZONE` | Default mysql2 connection `timezone` (`'+09:00'`) for the JST DB deployment. |
-| `jstTimestamp` / `jstDatetime` / `jstDate` / `decimalNumber` | Drizzle column helpers (no repo-side wrapper needed). |
+| `jstTimestamp` / `jstDatetime` / `jstDate` | Drizzle column helpers (no repo-side wrapper needed). |
 | `jstOnUpdateNow` | SQL expression for `ON UPDATE CURRENT_TIMESTAMP`. The `jstTimestamp` customType (and friends) do not support `.onUpdateNow()`, so pair it with `.$onUpdateFn(() => jstOnUpdateNow(fsp))`. |
-| `coerceDecimalNumber` / `decimalNumberParams` | DECIMAL normalization params (the `decimalNumber` column helper is usually enough). |
 | `DRIZZLE_ORM_OPTIONS` / `honoDrizzleConfig(options)` / `HonoDrizzleConfigOptions` | Shared Drizzle casing (`snake_case`) for both the runtime `drizzle()` call and `drizzle.config.ts`, keeping config ↔ runtime in sync. |
 | `resolveDbSecret()` / `ResolvedDbSecret` | Resolve DB connection info from the `DB_SECRET` env var (an AWS RDS managed-secret JSON string) for CI migrate / local tooling. Returns `undefined` when `DB_SECRET` is unset; throws on invalid JSON or a missing required key. |
 | `baselineMigrations(options)` / `readBaselineEntry(migrationsFolder)` / `BaselineMigrationsOptions` / `BaselineResult` / `BaselineEntry` | Brownfield first-deploy helper: mark an existing `0000_*` migration as applied without re-running DDL. |
 
-#### Drizzle column helpers (`jstTimestamp` / `decimalNumber`, etc.)
+#### Drizzle column helpers (`jstTimestamp` / `jstDatetime` / `jstDate`, etc.)
 
 - `drizzle-orm` is a **peer** only. The kit does not include `drizzle-orm` as a dependency (even after publishing, it uses the consumer's single copy).
 - The consumer just keeps `drizzle-orm` in its `dependencies` as usual. **No `overrides` in `package.json` are needed.**

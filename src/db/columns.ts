@@ -5,8 +5,7 @@
  * @remarks
  * `drizzle-orm` is a **peer** (the consumer resolves a single copy); the kit does not bundle it. The
  * return types are the `customType` inference as-is (`MySqlCustomColumnBuilder<…>`) with no `any`, so
- * the column's semantic type (`string | Date`, `number | null`, etc.) propagates to the consumer
- * table's `$inferSelect`.
+ * the column's semantic type (`string | Date`, etc.) propagates to the consumer table's `$inferSelect`.
  *
  * **Precondition (a single drizzle copy)**: Drizzle's `SQL` is a **nominal** type carrying a private
  * field `shouldInlineParams`, so if the kit and the consumer resolve different copies of drizzle,
@@ -23,8 +22,6 @@
  */
 import { sql } from 'drizzle-orm';
 import { customType } from 'drizzle-orm/mysql-core';
-import { decimalNumberParams } from './decimal.js';
-import type { DecimalNumberConfig } from './decimal.js';
 import { jstDateParams, jstDatetimeParams, jstTimestampParams } from './jst.js';
 
 /**
@@ -47,7 +44,3 @@ export const jstDatetime = (name: string, opts?: { fsp?: number }) =>
 /** MySQL `date` — on INSERT/UPDATE, normalizes ISO / empty strings to `YYYY-MM-DD` (via `toDriver`). */
 export const jstDate = (name: string) =>
   customType<{ data: string | null; driverData: string | null }>(jstDateParams())(name);
-
-/** MySQL `decimal` — SELECT coerces string→number via `fromDriver`; writes bind the number as-is. */
-export const decimalNumber = (name: string, config: DecimalNumberConfig) =>
-  customType<{ data: number | null; driverData: number | string | null }>(decimalNumberParams(config))(name);
