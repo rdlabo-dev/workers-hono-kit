@@ -20,12 +20,12 @@ The root entry point must never depend on Node.js APIs or `mysql2`; it runs on `
 
 This package is used by the `hono/` directory of these projects:
 
-- `rdlabo-team/winecode` — full usage (auth, validation, errors, DB, KVCache, Stripe, AWS, Firebase, AI Gateway, testing)
-- `rdlabo-team/receptray` — full usage (auth, validation, errors, DB, Stripe, AWS, Firebase, testing)
+- `winecode` — full usage (auth, validation, errors, DB, KVCache, Stripe, AWS, Firebase, AI Gateway, testing)
+- `receptray` — full usage (auth, validation, errors, DB, Stripe, AWS, Firebase, testing)
 - `proschool-team/airlec2` — full usage (auth, validation, errors, DB, Stripe, AWS, CloudFront, Firebase, testing)
 - `odss-team/odss-mobile` — DB, auth, validation, errors
-- `rdlabo-team/tipsys` — adoption in progress
-- `rdlabo-team/foodlabel` — adoption in progress
+- `tipsys` — adoption in progress
+- `foodlabel` — adoption in progress
 
 ## Typical file layout in consuming projects
 

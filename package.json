@@ -11,12 +11,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rdlabo-team/workers-hono-kit.git"
+    "url": "git+https://github.com/rdlabo-dev/workers-hono-kit.git"
   },
   "bugs": {
-    "url": "https://github.com/rdlabo-team/workers-hono-kit/issues"
+    "url": "https://github.com/rdlabo-dev/workers-hono-kit/issues"
   },
-  "homepage": "https://github.com/rdlabo-team/workers-hono-kit#readme",
+  "homepage": "https://github.com/rdlabo-dev/workers-hono-kit#readme",
   "keywords": [
     "hono",
     "cloudflare-workers",

@@ -56,7 +56,7 @@ jobs:
       - run: npm ci
         working-directory: ./hono
       - name: DB migrate
-        uses: rdlabo-team/workers-hono-kit/.github/actions/db-migrate@v0.3.6
+        uses: rdlabo-dev/workers-hono-kit/.github/actions/db-migrate@v0.3.6
         with:
           role-to-assume: arn:aws:iam::<account-id>:role/<role-name>
           aws-region: <region>
@@ -112,7 +112,7 @@ jobs:
       contents: read
     steps:
       # ... checkout / setup-node / npm ci ...
-      - uses: rdlabo-team/workers-hono-kit/.github/actions/db-migrate@v0.3.6
+      - uses: rdlabo-dev/workers-hono-kit/.github/actions/db-migrate@v0.3.6
         with:
           role-to-assume: arn:aws:iam::<account-id>:role/<role-name>
           aws-region: <region>

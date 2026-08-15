@@ -792,4 +792,4 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 
 ## License
 
-[MIT](./LICENSE) © rdlabo-team
+[MIT](./LICENSE) © rdlabo-dev
