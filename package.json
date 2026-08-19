@@ -43,6 +43,7 @@
   "files": [
     "dist",
     "scripts",
+    "docs",
     "!src/**/*.spec.ts"
   ],
   "bin": {
