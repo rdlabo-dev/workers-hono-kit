@@ -1,7 +1,3 @@
----
-title: Development
----
-
 # Development
 
 These commands are used when working on the package itself:

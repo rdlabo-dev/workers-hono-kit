@@ -1,7 +1,3 @@
----
-title: 'API: Business Time'
----
-
 # API: `@rdlabo/workers-hono-kit/business-time`
 
 String-level JST business-time conversions (Workers UTC instant ↔ business calendar date / date-time), with **no `mysql2` / `drizzle-orm` dependency**. This is a different layer from the `./db` column helpers (which handle the MySQL wire format): the DB stays on JST, and the app handles JST explicitly through this module instead of relying implicitly on the connection `timezone`.

@@ -1,7 +1,3 @@
----
-title: Role Policies
----
-
 # Storage-agnostic role policies
 
 `createRolePolicy` builds pure RBAC checks without coupling the policy to a database schema. The application can resolve roles from a membership table, a `users.role` column, token claims, or any other source.

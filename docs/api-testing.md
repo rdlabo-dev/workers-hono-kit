@@ -1,7 +1,3 @@
----
-title: 'API: Testing'
----
-
 # API: `@rdlabo/workers-hono-kit/testing`
 
 Requires the `drizzle-orm` and `mysql2` peers. Consolidates duplicated test boilerplate.

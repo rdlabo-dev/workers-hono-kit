@@ -1,7 +1,3 @@
----
-title: 'API: Root'
----
-
 # API: `@rdlabo/workers-hono-kit`
 
 The root export is web-standard only: it runs on `workerd` and never depends on Node.js APIs or `mysql2`. The table below lists the helpers exported from the root entry point.

@@ -1,7 +1,3 @@
----
-title: 'API: Offline'
----
-
 # API: `@rdlabo/workers-hono-kit/offline`
 
 Table-agnostic building blocks for product-owned REST ↔ DB method converters and their offline replica wire values. This subpath does not define table projections, Zod object shapes, public-column allowlists, schema hashes, or domain rules; those remain in each Hono application.

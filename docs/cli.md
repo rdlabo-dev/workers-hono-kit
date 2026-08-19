@@ -1,7 +1,3 @@
----
-title: CLI
----
-
 # CLI
 
 The package ships `bin` commands that can be run with `npx` or wired into npm scripts in the consuming app. They are operational helpers: AWS credential sync, subrequest fan-out gating, and brownfield database baselining.

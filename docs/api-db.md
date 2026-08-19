@@ -1,7 +1,3 @@
----
-title: 'API: DB'
----
-
 # API: `@rdlabo/workers-hono-kit/db`
 
 Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via raw SQL; writes/transactions run against the primary through the Drizzle ORM with deadlock retry. The kit deliberately does not depend on the ORM's type identity — you pass the Drizzle instance in.
