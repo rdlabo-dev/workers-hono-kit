@@ -51,6 +51,10 @@ Subpath imports keep optional database and testing dependencies out of the root 
 - [Development](./docs/development.md)
 - [API Reference](./docs/api.md)
 
+## Maintainers
+
+- [rdlabo](https://rdlabo.dev/)
+
 ## License
 
 [MIT](./LICENSE) © rdlabo-dev
