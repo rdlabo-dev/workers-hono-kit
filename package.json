@@ -16,7 +16,7 @@
   "bugs": {
     "url": "https://github.com/rdlabo-dev/workers-hono-kit/issues"
   },
-  "homepage": "https://github.com/rdlabo-dev/workers-hono-kit#readme",
+  "homepage": "https://docs.rdlabo.dev/projects/workers-hono-kit",
   "keywords": [
     "hono",
     "cloudflare-workers",
