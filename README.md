@@ -36,20 +36,14 @@ Subpath imports keep optional database and testing dependencies out of the root 
 
 ## Documentation
 
-- [HTTP and Authentication](./docs/http-auth.md)
-- [Data Layer](./docs/data-layer.md)
-- [Realtime and Offline](./docs/realtime-offline.md)
-- [Testing and Operations](./docs/testing-operations.md)
+- [HTTP and Authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth)
+- [Data Layer](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
+- [Realtime and Offline](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/realtime-offline)
+- [Testing and Operations](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/testing-operations)
+- [API Reference](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/api)
 
 <!-- rdlabo-docs-omit -->
 **Full documentation:** [https://docs.rdlabo.dev/projects/workers-hono-kit](https://docs.rdlabo.dev/projects/workers-hono-kit)
-
-## Additional GitHub docs
-
-- [CLI](./docs/cli.md)
-- [Role Policies](./docs/role-policies.md)
-- [Development](./docs/development.md)
-- [API Reference](./docs/api.md)
 
 ## Maintainers
 
