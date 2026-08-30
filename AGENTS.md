@@ -10,7 +10,10 @@ Shared infrastructure toolkit for Hono + Cloudflare Workers APIs. Published to n
 |---------|-------------|-------|
 | `.` | `@rdlabo/workers-hono-kit` | Web-standard only (middleware, HTTP helpers, Firebase, AWS, Stripe, AI Gateway, KV cache) |
 | `./db` | `@rdlabo/workers-hono-kit/db` | MySQL data layer (requires `mysql2` + `drizzle-orm` peers) |
-| `./business-time` | `@rdlabo/workers-hono-kit/business-time` | JST 業務時刻（`toBusinessDateTime`, `normalizeBusinessDate`, `businessDateTimeInstant` 等） |
+| `./business-time` | `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone` |
+
+The repository is an npm workspace. `packages/timezone` is the canonical implementation published
+as `@rdlabo/workers-timezone`; the legacy `./business-time` subpath must remain a thin re-export.
 | `./offline` | `@rdlabo/workers-hono-kit/offline` | テーブル非依存のREST/DB method converter・replica wire・clock helpers |
 | `./testing` | `@rdlabo/workers-hono-kit/testing` | Test helpers (requires `mysql2` + `drizzle-orm` peers) |
 

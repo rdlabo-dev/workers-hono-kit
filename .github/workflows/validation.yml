@@ -15,6 +15,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  timezone:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check --workspace @rdlabo/workers-timezone
+      - run: npm run typecheck --workspace @rdlabo/workers-timezone
+      - run: npm run lint --workspace @rdlabo/workers-timezone
+      - run: npm test --workspace @rdlabo/workers-timezone
+      - run: npm run build --workspace @rdlabo/workers-timezone
+      - run: npm run test:package --workspace @rdlabo/workers-timezone
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -24,7 +43,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: '**/package-lock.json'
-      - run: npm install
+      - run: npm ci
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
@@ -41,10 +60,12 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: '**/package-lock.json'
-      - run: npm install
+      - run: npm ci
       - name: Test
         run: npm run test
         env:
           CI: true
       - name: Build
         run: npm run build
+      - name: Package consumer smoke
+        run: npm run test:package

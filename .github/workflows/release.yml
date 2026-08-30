@@ -111,6 +111,10 @@ jobs:
 
       - name: Publish packages
         run: |
+          if node -e "process.exit(require('./packages/timezone/package.json').private ? 0 : 1)"; then
+            echo "::error::Release is disabled while @rdlabo/workers-timezone is private and unpublished"
+            exit 1
+          fi
           VERSION="${{ steps.tag_version.outputs.version }}"
           IS_STABLE=$(echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' && echo true || echo false)
 
@@ -381,7 +385,11 @@ jobs:
 
   publish-candidate:
     needs: authorize-candidate
-    if: needs.authorize-candidate.outputs.allowed == 'true'
+    # Publishing remains explicitly disabled while the timezone workspace is private/unpublished.
+    # Candidate tarballs are still built and retained for review.
+    if: >-
+      needs.authorize-candidate.outputs.allowed == 'true' &&
+      vars.WORKSPACE_NPM_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: npm-${{ needs.authorize-candidate.outputs.dist-tag }}-${{ needs.authorize-candidate.outputs.head-sha }}
@@ -492,6 +500,21 @@ jobs:
               expectedVersion !== process.env.VERSION
             ) {
               core.setFailed('Trusted package identity changed after authorization; rerun the release request.');
+              return;
+            }
+            const { data: timezoneData } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'packages/timezone/package.json',
+              ref: defaultBranch,
+            });
+            if (Array.isArray(timezoneData) || timezoneData.type !== 'file' || !timezoneData.content) {
+              core.setFailed('Trusted timezone package.json could not be read.');
+              return;
+            }
+            const timezonePackage = JSON.parse(Buffer.from(timezoneData.content, 'base64').toString('utf8'));
+            if (timezonePackage.private !== false) {
+              core.setFailed('Candidate publishing is disabled while @rdlabo/workers-timezone is private.');
             }
 
       - name: Setup Node.js

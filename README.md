@@ -27,12 +27,22 @@ Stripe is a direct dependency of the kit. The package is compiled ESM with decla
 | ---------------------------------------- | ------------------------------------------------------------------------------ |
 | `@rdlabo/workers-hono-kit`               | HTTP, auth, errors, Firebase, AWS, AI, Stripe, KV, queues, realtime primitives |
 | `@rdlabo/workers-hono-kit/db`            | Hyperdrive, MySQL, Drizzle, migrations, JST columns                            |
-| `@rdlabo/workers-hono-kit/business-time` | JST business dates and date-times                                              |
+| `@rdlabo/workers-timezone`               | IANA-timezone-aware dates and date-times (Asia/Tokyo by default)               |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone`               |
 | `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts             |
 | `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                                     |
 | `@rdlabo/workers-hono-kit/testing`       | Test databases, auth helpers, fakes, and Stripe fixtures                       |
 
 Subpath imports keep optional database and testing dependencies out of the root runtime surface.
+
+Set a deployment-wide timezone once when the Worker module starts. Helpers then use it whenever
+their optional timezone argument is omitted:
+
+```ts
+import { TIME_ZONES, initializeTimezone } from '@rdlabo/workers-timezone';
+
+initializeTimezone({ timeZone: TIME_ZONES.NEW_YORK });
+```
 
 ## Documentation
 
@@ -43,23 +53,20 @@ Subpath imports keep optional database and testing dependencies out of the root 
 - [API Reference](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/api)
 
 <!-- rdlabo-docs-omit -->
+
 **Full documentation:** [https://docs.rdlabo.dev/projects/workers-hono-kit](https://docs.rdlabo.dev/projects/workers-hono-kit)
 
 ## Prerelease channels
 
-An open, non-draft pull request can be published to the npm `beta` dist-tag after its `Validation` and `Package Candidate` workflows pass. A repository owner or maintainer must add a comment whose entire body is:
+While `@rdlabo/workers-timezone` is private and unpublished, npm publication of both workspace
+packages is disabled. Pull requests and merges still produce separate immutable candidate artifacts
+for `@rdlabo/workers-hono-kit` and `@rdlabo/workers-timezone`, but `/beta`, automatic beta, `next`,
+and stable publication are blocked.
 
-```text
-/beta
-```
-
-The request authorizes only the pull request head SHA that existed when the comment was added. The workflow revalidates the owner or maintainer permission and head SHA immediately before publishing. Any new commit requires CI to pass again and a fresh owner or maintainer `/beta` comment. Fork pull requests are supported. Pull requests that change a release-gating workflow cannot be beta-published until those workflow changes land on `main`.
-
-Beta versions use `<base>-beta.pr<PR number>.sha<12-character SHA>`. The candidate is built in a read-only workflow without npm publishing credentials. The privileged release workflow publishes only the validated immutable package artifact with lifecycle scripts disabled. A notification failure cannot invalidate a successful npm publish.
-
-When a pull request is merged into `main`, it is automatically published to `beta` only after the required CI and `Package Candidate` succeed for that exact merge commit. Direct pushes to `main` do not publish a candidate.
-
-Only `npm run release` creates a release tag. Stable `vX.Y.Z` tags publish to npm `latest`; revision/prerelease tags publish to `next`. Neither `beta` nor `next` publishing changes the npm `latest` dist-tag.
+Publication may be enabled only after the timezone package becomes public, versions and dependency
+ranges are synchronized, and release automation publishes timezone before hono-kit. Candidate
+publication additionally requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true` and
+revalidates `packages/timezone/package.json` as non-private immediately before publishing.
 
 ## Maintainers
 
@@ -68,4 +75,5 @@ Only `npm run release` creates a release tag. Stable `vX.Y.Z` tags publish to np
 ## License
 
 [MIT](./LICENSE) © rdlabo-dev
+
 <!-- /rdlabo-docs-omit -->

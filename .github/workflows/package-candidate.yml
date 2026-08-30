@@ -82,11 +82,20 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/npm-candidate"
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/npm-candidate"
+          npm pack --ignore-scripts --workspace @rdlabo/workers-timezone --pack-destination "$RUNNER_TEMP/npm-candidate"
 
       - name: Upload immutable package artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.candidate.outputs.artifact }}
-          path: ${{ runner.temp }}/npm-candidate/*.tgz
+          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-hono-kit-*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload timezone workspace artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.candidate.outputs.artifact }}-timezone
+          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-timezone-*.tgz
           if-no-files-found: error
           retention-days: 7
