@@ -4,7 +4,7 @@ Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via r
 
 | Export | Description |
 | --- | --- |
-| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. Workers cleans them up at invocation end; the legacy `dispose()` is a no-op. |
+| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. A replica SELECT is repeated at most once on a fresh connection after a fatal mysql2 connection error; writes and transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
 | `createMysqlDatabase(options)` | Assemble a `Database` from an already-connected Drizzle ORM + replica `QueryRunner`. |
 | `databaseFrom(orm, replica)` | Build a `Database` from an existing Drizzle instance + replica handle. |
 | `Database` / `DisposableDatabase` / `QueryRunner` / `TxOf` | The `read` / `write` / `transaction` API and its supporting types. |

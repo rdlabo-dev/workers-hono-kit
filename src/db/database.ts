@@ -63,7 +63,7 @@ export type TxOf<TDrizzle> = TDrizzle extends {
 export interface Database<TDrizzle, TTx = TxOf<TDrizzle>> {
   /**
    * Run a raw SQL read against the replica. Hyperdrive-backed databases retry deadlocks and repeat
-   * the SELECT once on a fresh connection after mysql2 reports connection loss.
+   * the SELECT once on a fresh connection after mysql2 reports a fatal connection error.
    *
    * @typeParam T - the row shape.
    * @param sql - the SQL text, with `?` placeholders for `params`.
@@ -183,8 +183,8 @@ export interface CreateHyperdriveDatabaseOptions<TDrizzle> {
  * lifetime of the instance; the read/write/transaction surface is identical to
  * {@link createMysqlDatabase}. Workers automatically cleans up connections at the end of the
  * invocation, so callers do not need to close them manually. Replica SELECTs are repeated once on
- * a fresh connection after connection loss. Writes and transactions are never repeated for
- * connection loss because their commit state can be ambiguous.
+ * a fresh connection after a fatal mysql2 connection error. Writes and transactions are never
+ * repeated for connection errors because their commit state can be ambiguous.
  *
  * @typeParam TDrizzle - the consumer's Drizzle ORM type.
  * @param options - the primary/replica Hyperdrive bindings, the ORM factory, and connection options.
@@ -227,7 +227,7 @@ export function createHyperdriveDatabase<TDrizzle>(
       if (outcome.ok) {
         return outcome.rows;
       }
-      if (!isConnectionLoss(outcome.error)) {
+      if (!isFatalConnectionError(outcome.error)) {
         throw outcome.error;
       }
       if (replicaConn === connection) {
@@ -289,18 +289,13 @@ function connect(hyperdrive: HyperdriveLike, extra?: Record<string, unknown>): P
   return createConnection(hyperdriveConnectionOptions(hyperdrive, extra));
 }
 
-function isConnectionLoss(error: unknown): boolean {
+function isFatalConnectionError(error: unknown): boolean {
   let current = error;
   const seen = new Set<unknown>();
   while (typeof current === 'object' && current !== null && !seen.has(current)) {
     seen.add(current);
-    const value = current as { cause?: unknown; code?: unknown; message?: unknown };
-    if (
-      value.code === 'PROTOCOL_CONNECTION_LOST' ||
-      (typeof value.message === 'string' &&
-        (value.message.includes('Connection lost:') ||
-          value.message.includes("Can't add new command when connection is in closed state")))
-    ) {
+    const value = current as { cause?: unknown; fatal?: unknown };
+    if (value.fatal === true) {
       return true;
     }
     current = value.cause;

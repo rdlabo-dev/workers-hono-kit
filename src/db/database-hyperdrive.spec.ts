@@ -38,10 +38,11 @@ describe('createHyperdriveDatabase lifecycle', () => {
     expect(end).not.toHaveBeenCalled();
   });
 
-  it('reconnects once and repeats a replica read after connection loss', async () => {
+  it('reconnects once and repeats a replica read after a fatal connection error', async () => {
     const firstQuery = vi.fn().mockRejectedValue(
-      Object.assign(new Error('Connection lost: server closed the connection'), {
-        code: 'PROTOCOL_CONNECTION_LOST',
+      Object.assign(new Error('write EPIPE'), {
+        code: 'EPIPE',
+        fatal: true,
       }),
     );
     const secondQuery = vi.fn().mockResolvedValue([[{ id: 7 }], []]);
@@ -59,7 +60,9 @@ describe('createHyperdriveDatabase lifecycle', () => {
   });
 
   it('shares a replacement connection between concurrent failed reads', async () => {
-    const closed = new Error("Can't add new command when connection is in closed state");
+    const closed = Object.assign(new Error("Can't add new command when connection is in closed state"), {
+      fatal: true,
+    });
     const firstQuery = vi.fn().mockRejectedValue(closed);
     const secondQuery = vi.fn().mockResolvedValue([[], []]);
     mocks.createConnection.mockResolvedValueOnce({ query: firstQuery }).mockResolvedValueOnce({ query: secondQuery });
@@ -87,8 +90,23 @@ describe('createHyperdriveDatabase lifecycle', () => {
     expect(mocks.createConnection).toHaveBeenCalledOnce();
   });
 
+  it('does not reconnect based on a non-fatal error message', async () => {
+    const failure = new Error("Can't add new command when connection is in closed state");
+    mocks.createConnection.mockResolvedValue({ query: vi.fn().mockRejectedValue(failure) });
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm: () => ({ transaction: vi.fn() }),
+    });
+
+    await expect(db.read('SELECT 1')).rejects.toBe(failure);
+    expect(mocks.createConnection).toHaveBeenCalledOnce();
+  });
+
   it('does not loop when the replacement connection also fails', async () => {
-    const closed = new Error("Can't add new command when connection is in closed state");
+    const closed = Object.assign(new Error("Can't add new command when connection is in closed state"), {
+      fatal: true,
+    });
     const replacementFailure = new Error('replacement unavailable');
     mocks.createConnection
       .mockResolvedValueOnce({ query: vi.fn().mockRejectedValue(closed) })
@@ -101,5 +119,25 @@ describe('createHyperdriveDatabase lifecycle', () => {
 
     await expect(db.read('SELECT 1')).rejects.toBe(replacementFailure);
     expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+  });
+
+  it('never repeats writes or transactions after a fatal connection error', async () => {
+    const fatal = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET', fatal: true });
+    const write = vi.fn().mockRejectedValue(fatal);
+    const transactionWork = vi.fn().mockRejectedValue(fatal);
+    const transaction = vi.fn((fn: (tx: object) => Promise<unknown>) => fn({}));
+    mocks.createConnection.mockResolvedValue({ query: vi.fn() });
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm: () => ({ transaction }),
+    });
+
+    await expect(db.write(write)).rejects.toBe(fatal);
+    await expect(db.transaction(transactionWork)).rejects.toBe(fatal);
+    expect(write).toHaveBeenCalledOnce();
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(transactionWork).toHaveBeenCalledOnce();
+    expect(mocks.createConnection).toHaveBeenCalledOnce();
   });
 });
