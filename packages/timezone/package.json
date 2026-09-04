@@ -1,7 +1,11 @@
 {
   "name": "@rdlabo/workers-timezone",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "description": "Timezone-aware date and business-time utilities for Cloudflare Workers",
   "license": "MIT",

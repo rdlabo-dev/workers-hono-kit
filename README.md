@@ -27,9 +27,6 @@ Additional optional peers and packages stay separate:
 | MySQL and Hyperdrive    | [`@rdlabo/workers-mysql`](https://github.com/rdlabo-dev/workers-hono-kit/tree/main/packages/mysql#readme) and optionally `drizzle-orm` |
 | IANA timezone utilities | [`@rdlabo/workers-timezone`](https://github.com/rdlabo-dev/workers-hono-kit/tree/main/packages/timezone#readme)                        |
 
-The two standalone workspace packages are not published yet. Their READMEs distinguish current npm
-usage, candidate tarballs, and post-publication installation.
-
 ## Kit entry points
 
 | Import                                   | Responsibility                                                       |
@@ -46,13 +43,11 @@ The root entry point does not load MySQL, Drizzle, or Node-only migration module
 install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
 adapter.
 
-In the workspace candidate and upcoming release, `/testing` retains static DB compatibility exports. Every `/testing` consumer,
+From `0.12.0`, `/testing` retains static DB compatibility exports. Every `/testing` consumer,
 including applications using only Firebase or KV fakes, must install `@rdlabo/workers-mysql` and
-`drizzle-orm`. Use matching candidate tarballs while the standalone package is unpublished.
-The current npm release instead uses `mysql2` and `drizzle-orm` directly and does not require
-`@rdlabo/workers-mysql`.
+`drizzle-orm`.
 
-The next `0.x` minor moves the root MySQL exports to the standalone package and `/mysql` adapter.
+Version `0.12.0` moves the root MySQL exports to the standalone package and `/mysql` adapter.
 Existing users should follow the [MySQL migration guide](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
 before upgrading.
 

@@ -2,8 +2,6 @@
 
 MySQL, Hyperdrive, and Drizzle infrastructure for Cloudflare Workers.
 
-> This workspace is under development and is not published yet.
-
 The Worker must enable Node.js compatibility because `mysql2` uses Node.js networking APIs:
 
 ```toml
@@ -11,31 +9,7 @@ The Worker must enable Node.js compatibility because `mysql2` uses Node.js netwo
 compatibility_flags = ["nodejs_compat"]
 ```
 
-## Current npm release
-
-The standalone package is not published yet. Existing applications stay on the currently published
-Hono kit and its compatibility entry point:
-
-```sh
-npm install @rdlabo/workers-hono-kit mysql2 drizzle-orm
-```
-
-Package managers configured not to install required peers automatically must also install the Hono
-kit peers listed in its [root README](https://github.com/rdlabo-dev/workers-hono-kit#install).
-
-```ts
-import { createHyperdriveDatabase } from '@rdlabo/workers-hono-kit/db';
-```
-
 ## Install
-
-The package is not on npm yet. For a candidate build, install its downloaded tarball:
-
-```bash
-npm install ./rdlabo-workers-mysql-*.tgz
-```
-
-After publication:
 
 ```bash
 npm install @rdlabo/workers-mysql
@@ -97,14 +71,9 @@ does not depend on Hono.
 import { createContainerRuntime } from '@rdlabo/workers-hono-kit/mysql';
 ```
 
-This adapter is new in the candidate Hono kit. Candidate testing therefore requires matching MySQL
-and Hono kit tarballs; after publication, install both packages:
+This adapter is available from Hono kit `0.12.0`. Install both packages:
 
 ```sh
-# Candidate
-npm install ./rdlabo-workers-mysql-*.tgz ./rdlabo-workers-hono-kit-*.tgz
-
-# After publication
 npm install @rdlabo/workers-mysql @rdlabo/workers-hono-kit
 ```
 
@@ -113,7 +82,7 @@ the complete three-package candidate graph.
 
 ## Migrating from workers-hono-kit
 
-This boundary is a breaking change for the next `0.x` minor of the kit:
+This boundary is a breaking change in version `0.12.0` of the kit:
 
 | Current import                                          | Replacement                                       |
 | ------------------------------------------------------- | ------------------------------------------------- |

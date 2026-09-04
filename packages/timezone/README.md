@@ -4,29 +4,7 @@ Timezone-aware calendar and wall-clock utilities for Cloudflare Workers. Workers
 instants; this package lets an application select an IANA timezone once per isolate and handles DST
 when converting between instants and local dates.
 
-> This package is under development and is not published to npm yet.
-
-## Current npm release
-
-Existing applications use the currently published Hono kit compatibility entry point:
-
-```sh
-npm install @rdlabo/workers-hono-kit
-```
-
-```ts
-import { toBusinessDateTime } from '@rdlabo/workers-hono-kit/business-time';
-```
-
 ## Install
-
-Install a downloaded candidate tarball while it is unpublished:
-
-```sh
-npm install ./rdlabo-workers-timezone-*.tgz
-```
-
-After publication, install it as a direct dependency:
 
 ```sh
 npm install @rdlabo/workers-timezone

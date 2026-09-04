@@ -1,8 +1,7 @@
 # Testing APIs
 
-This page describes the workspace candidate and upcoming release. The current npm Hono kit
-contains its DB helpers internally: install `mysql2` and `drizzle-orm` for its `/testing` entry
-point, without the unpublished `@rdlabo/workers-mysql` package.
+From kit `0.12.0`, DB test helpers are owned by `@rdlabo/workers-mysql`. Install that package and
+`drizzle-orm` when using either package's `/testing` entry point.
 
 ## `@rdlabo/workers-mysql/testing`
 
@@ -22,7 +21,7 @@ deprecated compatibility re-exports of `@rdlabo/workers-mysql/testing`.
 
 These compatibility exports are loaded statically. Importing **any** helper from this entry point
 requires `@rdlabo/workers-mysql` and `drizzle-orm`, even when the test does not use a database.
-Before publication, install the matching candidate packages described in [Development](./development.md).
+For candidate tarball installation, see [Development](./development.md).
 
 | Export                                                                                                                              | Description                                                                                                           |
 | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |

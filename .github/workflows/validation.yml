@@ -88,5 +88,7 @@ jobs:
           CI: true
       - name: Build
         run: npm run build
+      - name: Release protocol tests
+        run: npm run test:release
       - name: Package consumer smoke
         run: npm run test:package

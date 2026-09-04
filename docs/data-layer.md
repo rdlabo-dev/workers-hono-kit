@@ -9,20 +9,16 @@ Workers using `mysql2` must enable its required Node.js networking APIs:
 compatibility_flags = ["nodejs_compat"]
 ```
 
-`@rdlabo/workers-mysql` is not published yet. The currently published Hono kit continues to use
-`@rdlabo/workers-hono-kit/db` plus direct `mysql2` and `drizzle-orm` dependencies:
-
 ```sh
-npm install @rdlabo/workers-hono-kit mysql2 drizzle-orm
+npm install @rdlabo/workers-mysql drizzle-orm
+npm install -D @types/node@20
 ```
 
-For this PR's candidate, install the downloaded MySQL and Hono kit tarballs as described in
-[Development](./development.md), then use the canonical imports below. After publication, replace the tarball with
-`npm install @rdlabo/workers-mysql drizzle-orm`.
+For candidate tarball installation, see [Development](./development.md).
 
 ## Migrating from workers-hono-kit
 
-The package boundary is a breaking change for the next `0.x` minor. Update these imports before
+The package boundary is a breaking change in `0.12.0`. Update these imports before
 upgrading:
 
 | Current import                                          | Replacement                                           |
@@ -85,10 +81,8 @@ import { createContainerRuntime } from '@rdlabo/workers-hono-kit/mysql';
 Use `jstTimestamp`, `jstDatetime`, and `jstDate` for shared date behavior. Pair update timestamps with `jstOnUpdateNow()` because custom timestamp types do not expose Drizzle's `.onUpdateNow()`. For decimal columns, use Drizzle's `decimal(name, { precision, scale, mode: 'number' })` directly.
 
 Generic business-time conversion is separate from the DB's fixed `+09:00` wire contract.
-`@rdlabo/workers-timezone` is still unpublished; the currently published kit retains its existing
-`/business-time` API. When the timezone package is published, install it directly and migrate to its
-canonical entry point. Candidate artifacts and installation are described in
-[Development](./development.md).
+Install `@rdlabo/workers-timezone` directly and migrate from the kit's deprecated `/business-time`
+compatibility path to its canonical entry point.
 
 ```sh
 npm install @rdlabo/workers-timezone

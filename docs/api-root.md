@@ -5,7 +5,7 @@ The root export runs on `workerd` without loading MySQL or Drizzle. It requires
 `npm install @rdlabo/workers-hono-kit ai-gateway-provider`. MySQL infrastructure lives in
 `@rdlabo/workers-mysql`; its Hono adapter is `@rdlabo/workers-hono-kit/mysql`.
 
-The next `0.x` minor moves the former root exports `createContainerRuntime` and
+Version `0.12.0` moves the former root exports `createContainerRuntime` and
 `retryWhenDeadlock` to those MySQL-specific entry points. This is intentionally not a root
 re-export: retaining it would make MySQL runtime and declaration resolution mandatory again.
 

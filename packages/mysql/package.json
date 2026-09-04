@@ -1,7 +1,11 @@
 {
   "name": "@rdlabo/workers-mysql",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "description": "MySQL and Hyperdrive utilities for Cloudflare Workers",
   "license": "MIT",

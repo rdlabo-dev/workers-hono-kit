@@ -66,6 +66,10 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PR_NUMBER: ${{ steps.merge.outputs.pr-number }}
         run: |
+          mkdir -p "$RUNNER_TEMP/npm-manifests/packages/timezone" "$RUNNER_TEMP/npm-manifests/packages/mysql"
+          cp package.json "$RUNNER_TEMP/npm-manifests/package.json"
+          cp packages/timezone/package.json "$RUNNER_TEMP/npm-manifests/packages/timezone/package.json"
+          cp packages/mysql/package.json "$RUNNER_TEMP/npm-manifests/packages/mysql/package.json"
           if [ -n "$PR_NUMBER" ]; then
             SUFFIX="beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}"
           else
@@ -74,6 +78,12 @@ jobs:
           node scripts/version-package-candidate.mjs "$SUFFIX"
           npm install --package-lock-only --ignore-scripts
           echo "artifact=npm-candidate-${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+          if [ -n "$PR_NUMBER" ]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build package
         run: npm run build
@@ -84,30 +94,20 @@ jobs:
       - name: Pack candidate
         run: |
           mkdir -p "$RUNNER_TEMP/npm-candidate"
-          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/npm-candidate"
-          npm pack --ignore-scripts --workspace @rdlabo/workers-timezone --pack-destination "$RUNNER_TEMP/npm-candidate"
-          npm pack --ignore-scripts --workspace @rdlabo/workers-mysql --pack-destination "$RUNNER_TEMP/npm-candidate"
+          npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destination "$RUNNER_TEMP/npm-candidate"
+
+      - name: Validate all candidate archives without publishing
+        env:
+          CANDIDATE_SUFFIX: ${{ steps.candidate.outputs.suffix }}
+          CANDIDATE_TAG: ${{ steps.candidate.outputs.tag }}
+        run: >-
+          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate"
+          --manifests "$RUNNER_TEMP/npm-manifests" --tag "$CANDIDATE_TAG" --suffix "$CANDIDATE_SUFFIX"
 
       - name: Upload immutable package artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.candidate.outputs.artifact }}
-          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-hono-kit-*.tgz
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload timezone workspace artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.candidate.outputs.artifact }}-timezone
-          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-timezone-*.tgz
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload MySQL workspace artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.candidate.outputs.artifact }}-mysql
-          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-mysql-*.tgz
+          path: ${{ runner.temp }}/npm-candidate/*.tgz
           if-no-files-found: error
           retention-days: 7
