@@ -13,6 +13,11 @@ describe('toJstDate (DATE 列 toDriver)', () => {
     expect(toJstDate('not-a-date')).toBeNull();
   });
 
+  it('passes date-only values through for the database to validate', () => {
+    expect(toJstDate('2026-02-30')).toBe('2026-02-30');
+    expect(toJstDate('0000-01-01')).toBe('0000-01-01');
+  });
+
   it('normalizes an ISO 8601 (Z) string to a YYYY-MM-DD JST date', () => {
     expect(toJstDate('2026-06-22T00:00:00.000Z')).toBe('2026-06-22');
   });

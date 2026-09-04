@@ -41,10 +41,18 @@ Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connect
 
 Use `jstTimestamp`, `jstDatetime`, and `jstDate` for shared date behavior. Pair update timestamps with `jstOnUpdateNow()` because custom timestamp types do not expose Drizzle's `.onUpdateNow()`. For decimal columns, use Drizzle's `decimal(name, { precision, scale, mode: 'number' })` directly.
 
-The `/business-time` entry point converts instants and business dates in the JST business timezone:
+Generic business-time conversion is separate from the DB's fixed `+09:00` wire contract.
+`@rdlabo/workers-timezone` is still unpublished; the currently published kit retains its existing
+`/business-time` API. When the timezone package is published, install it directly and migrate to its
+canonical entry point. To exercise the workspace candidate before then, install both tarballs as
+described in the repository README.
+
+```sh
+npm install @rdlabo/workers-timezone
+```
 
 ```ts
-import { addBusinessDays, toBusinessDateTime } from '@rdlabo/workers-hono-kit/business-time';
+import { addBusinessDays, toBusinessDateTime } from '@rdlabo/workers-timezone';
 
 toBusinessDateTime(new Date('2026-07-05T21:00:00Z'));
 // '2026-07-06 06:00:00'

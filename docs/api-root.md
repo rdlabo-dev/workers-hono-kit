@@ -1,6 +1,9 @@
 # API: `@rdlabo/workers-hono-kit`
 
-The root export is web-standard only: it runs on `workerd` and never depends on Node.js APIs or `mysql2`. The table below lists the helpers exported from the root entry point.
+The root export runs on `workerd` and requires the `mysql2` and `ai-gateway-provider` peers because
+it statically exports `createContainerRuntime` and `createAiGatewayProvider`. Install the package
+set with `npm install @rdlabo/workers-hono-kit mysql2 ai-gateway-provider`. The table below lists the
+helpers exported from the root entry point.
 
 | Export | Description |
 | --- | --- |

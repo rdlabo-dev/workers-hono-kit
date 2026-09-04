@@ -8,16 +8,18 @@ Shared infrastructure toolkit for Hono + Cloudflare Workers APIs. Published to n
 
 | Subpath | Import path | Scope |
 |---------|-------------|-------|
-| `.` | `@rdlabo/workers-hono-kit` | Web-standard only (middleware, HTTP helpers, Firebase, AWS, Stripe, AI Gateway, KV cache) |
+| `.` | `@rdlabo/workers-hono-kit` | Workers-compatible middleware and infrastructure, including the mysql2-backed container runtime |
 | `./db` | `@rdlabo/workers-hono-kit/db` | MySQL data layer (requires `mysql2` + `drizzle-orm` peers) |
-| `./business-time` | `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone` |
-
-The repository is an npm workspace. `packages/timezone` is the canonical implementation published
-as `@rdlabo/workers-timezone`; the legacy `./business-time` subpath must remain a thin re-export.
+| `./business-time` | `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export (requires the optional `@rdlabo/workers-timezone` peer) |
 | `./offline` | `@rdlabo/workers-hono-kit/offline` | テーブル非依存のREST/DB method converter・replica wire・clock helpers |
 | `./testing` | `@rdlabo/workers-hono-kit/testing` | Test helpers (requires `mysql2` + `drizzle-orm` peers) |
 
-The root entry point must never depend on Node.js APIs or `mysql2`; it runs on `workerd`.
+The repository is an npm workspace. `packages/timezone` is the canonical implementation published
+as `@rdlabo/workers-timezone`; the legacy `./business-time` subpath must remain a thin re-export.
+
+The root entry point must remain compatible with `workerd`. It requires the `mysql2` and
+`ai-gateway-provider` peers because it statically exports the Hyperdrive container lifecycle and AI
+Gateway factory; `drizzle-orm` remains confined to the `./db` and `./testing` subpaths.
 
 ## Consuming projects
 
@@ -68,7 +70,7 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 ## Design principles
 
 - **Configuration-injected, not opinionated**: the kit provides building blocks that accept configuration (verifier instances, Drizzle instances, Sentry clients) rather than hard-coding policy. Domain logic, database schemas, and application-specific behavior belong in the consuming project.
-- **Web-standard root**: the root export uses only `fetch`, `crypto.subtle`, `Response`, and other web-standard APIs available on `workerd`. mysql2/drizzle dependencies live in `./db` and `./testing` subpaths.
+- **Workers-compatible root**: the root export runs on `workerd` and statically exports the mysql2-backed `createContainerRuntime` and `createAiGatewayProvider`; therefore `mysql2` and `ai-gateway-provider` are required peers. Only `drizzle-orm` is confined to the `./db` and `./testing` subpaths.
 - **NestJS parity (error/validation bodies only)**: error handlers and validation responses still match NestJS byte-for-byte so existing API consumers see no change (their `message` shape is depended on by the fleet frontends). Parity is *not* maintained for ETag (`finalizeResponse` now uses `hono/etag`, not the Express `etag` format) or `HttpStatus` (standard IANA codes, NestJS-only members dropped).
 - **No ORM type identity coupling**: the `./db` subpath never depends on drizzle-orm's type identity — the ORM instance is always supplied by the consumer.
 

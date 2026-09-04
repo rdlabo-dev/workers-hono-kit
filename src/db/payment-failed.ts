@@ -5,7 +5,7 @@ import type { SQL } from 'drizzle-orm';
  * `payment_failed` persistence helpers (MySQL / Drizzle).
  *
  * @remarks
- * Lives in the `./db` subpath because it imports `drizzle-orm` (a peer); the web-standard root export
+ * Lives in the `./db` subpath because it imports the optional `drizzle-orm` peer; the root export
  * must stay free of ORM deps. The helper only builds SQL fragments — the consumer's repository
  * executes them, so it works regardless of the consumer's DB access layer (`db.write` / `helper.query`).
  */

@@ -1,5 +1,10 @@
 # API: `@rdlabo/workers-timezone`
 
+> This package is under development and is not published to npm yet. The API below describes the
+> workspace candidate. Until publication, use the currently published
+> `@rdlabo/workers-hono-kit/business-time`; candidate testing requires both tarballs described in
+> the repository README.
+
 Timezone-aware calendar and wall-clock conversion for Cloudflare Workers, with no database or Node
 runtime dependency. The uninitialized default remains `Asia/Tokyo` for compatibility.
 

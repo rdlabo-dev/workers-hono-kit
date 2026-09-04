@@ -1,6 +1,6 @@
 /**
- * Data-layer helpers that depend on `mysql2` (exposed under the `/db` subpath because the package
- * root is reserved for web-standard-only code).
+ * MySQL and Drizzle data-layer helpers exposed under `/db`. The root exports only the mysql2-backed
+ * container lifecycle; Drizzle-specific runtime and types remain isolated in this subpath.
  *
  * @remarks
  * This module never depends on the type identity of `drizzle-orm`: the ORM instance is always

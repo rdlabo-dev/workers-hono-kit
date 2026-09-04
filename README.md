@@ -3,8 +3,11 @@
 `@rdlabo/workers-hono-kit` provides infrastructure-layer helpers for Hono on Cloudflare Workers. Domain logic, database schemas, and application-specific policy stay in the consuming application.
 
 ```sh
-npm install @rdlabo/workers-hono-kit
+npm install @rdlabo/workers-hono-kit mysql2 ai-gateway-provider
 ```
+
+The kit, `mysql2`, and `ai-gateway-provider` are installed as a set because the root entry point
+statically exports `createContainerRuntime` and `createAiGatewayProvider`.
 
 Install only the peer dependencies required by the features you use:
 
@@ -13,10 +16,10 @@ Install only the peer dependencies required by the features you use:
 npm install hono zod @hono/zod-validator jose aws4fetch
 
 # Data and testing entry points
-npm install drizzle-orm mysql2
+npm install drizzle-orm
 
 # AI Gateway
-npm install ai ai-gateway-provider
+npm install ai
 ```
 
 Stripe is a direct dependency of the kit. The package is compiled ESM with declarations, uses Web-standard APIs such as `fetch`, `crypto.subtle`, and `Response`, and requires Node.js 20 or later for tooling.
@@ -25,7 +28,7 @@ Stripe is a direct dependency of the kit. The package is compiled ESM with decla
 
 | Import                                   | Responsibility                                                                 |
 | ---------------------------------------- | ------------------------------------------------------------------------------ |
-| `@rdlabo/workers-hono-kit`               | HTTP, auth, errors, Firebase, AWS, AI, Stripe, KV, queues, realtime primitives |
+| `@rdlabo/workers-hono-kit`               | HTTP, auth, MySQL container, Firebase, AWS, AI, Stripe, KV, queue primitives   |
 | `@rdlabo/workers-hono-kit/db`            | Hyperdrive, MySQL, Drizzle, migrations, JST columns                            |
 | `@rdlabo/workers-timezone`               | IANA-timezone-aware dates and date-times (Asia/Tokyo by default)               |
 | `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone`               |
@@ -33,13 +36,15 @@ Stripe is a direct dependency of the kit. The package is compiled ESM with decla
 | `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                                     |
 | `@rdlabo/workers-hono-kit/testing`       | Test databases, auth helpers, fakes, and Stripe fixtures                       |
 
-Subpath imports keep optional database and testing dependencies out of the root runtime surface.
+`mysql2` and `ai-gateway-provider` are required peers of the root package. The `/db` and `/testing`
+entry points additionally use the optional `drizzle-orm` peer. Business-time remains a separate
+optional package.
 
 `@rdlabo/workers-timezone` is not published yet. After publication, install both packages when
 using the timezone API or the deprecated compatibility subpath:
 
 ```sh
-npm install @rdlabo/workers-hono-kit @rdlabo/workers-timezone
+npm install @rdlabo/workers-hono-kit mysql2 ai-gateway-provider @rdlabo/workers-timezone
 ```
 
 Set a deployment-wide timezone once when the Worker module starts. Helpers then use it whenever
@@ -89,7 +94,7 @@ revalidates `packages/timezone/package.json` as non-private immediately before p
 Until then, install both downloaded candidate tarballs together when testing the package boundary:
 
 ```sh
-npm install ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
+npm install mysql2 ai-gateway-provider ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
 ```
 
 ## Maintainers

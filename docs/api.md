@@ -4,9 +4,10 @@
 
 | Entry point | Description | Reference |
 | --- | --- | --- |
-| `@rdlabo/workers-hono-kit` | Web-standard helpers (middleware, HTTP, Firebase, AWS, AI, Stripe, KV, queues, idempotency). | [Root](./api-root.md) |
+| `@rdlabo/workers-hono-kit` | Workers-compatible helpers and mysql2-backed container runtime. | [Root](./api-root.md) |
 | `@rdlabo/workers-hono-kit/db` | MySQL data layer (mysql2 + Drizzle), JST column helpers, baseline migrations. | [DB](./api-db.md) |
-| `@rdlabo/workers-hono-kit/business-time` | JST business calendar and date-time conversions. | [Business time](./api-business-time.md) |
+| `@rdlabo/workers-timezone` | Canonical IANA business calendar and date-time conversions. | [Business time](./api-business-time.md) |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export; requires `@rdlabo/workers-timezone`. | [Business time](./api-business-time.md) |
 | `@rdlabo/workers-hono-kit/offline` | Table-agnostic REST/DB method converters and replica wire helpers. | [Offline](./api-offline.md) |
 | `@rdlabo/workers-hono-kit/realtime` | Durable Object WebSocket and retry helpers. | [Realtime and Offline](./realtime-offline.md) |
 | `@rdlabo/workers-hono-kit/testing` | Drizzle-backed test DB, fakes, fixtures, and binding doubles. | [Testing](./api-testing.md) |
