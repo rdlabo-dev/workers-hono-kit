@@ -16,6 +16,7 @@ export { createMysqlDatabase, createHyperdriveDatabase, databaseFrom } from './d
 export type {
   Database,
   DisposableDatabase,
+  HyperdriveDatabase,
   QueryRunner,
   TxOf,
   CreateMysqlDatabaseOptions,
