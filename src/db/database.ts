@@ -131,10 +131,37 @@ export interface HyperdriveDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends Disp
    * @returns the rows returned by the query, typed as `T`.
    */
   query<T = unknown>(sql: string, params?: unknown[]): Promise<T>;
+  /**
+   * Run a repeatable-read, consistent snapshot on the primary database.
+   *
+   * @remarks
+   * The callback is repeated at most once on a fresh connection after a fatal connection error.
+   * This is safe only because the transaction is declared read-only. Use {@link transaction} for
+   * writes; write transactions are never repeated after connection loss.
+   */
+  readTransaction<T>(fn: (reader: ReadTransaction<TTx>) => Promise<T>): Promise<T>;
+}
+
+/** Primary read-only transaction handles that share one consistent snapshot. */
+export interface ReadTransaction<TTx> {
+  /**
+   * The consumer's Drizzle transaction handle.
+   *
+   * @remarks
+   * Drizzle's type does not distinguish read-only transactions. MySQL enforces read-only mode at
+   * runtime; applications may expose a narrower SELECT-only facade when they need compile-time
+   * enforcement.
+   */
+  orm: TTx;
+  /** Run raw SQL on the same primary connection and snapshot. */
+  query: <T = unknown>(sql: string, params?: unknown[]) => Promise<T>;
 }
 
 interface DrizzleLike<TTx> {
-  transaction<T>(cb: (tx: TTx) => Promise<T>): Promise<T>;
+  transaction<T>(
+    cb: (tx: TTx) => Promise<T>,
+    config?: { isolationLevel?: string; withConsistentSnapshot?: boolean },
+  ): Promise<T>;
 }
 
 /**
@@ -259,6 +286,33 @@ export function createHyperdriveDatabase<TDrizzle>(
     reset(connection);
     return readFrom<T>(connectionFor(), sql, params);
   };
+  const resetPrimary = (failedConnection: Promise<Connection>): void => {
+    if (primaryConn === failedConnection) {
+      primaryConn = undefined;
+      orm = undefined;
+    }
+  };
+  const runReadTransaction = async <T>(
+    connection: Promise<Connection>,
+    fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>,
+  ): Promise<T> => {
+    const conn = await connection;
+    const dz = (orm ??= createOrm(conn)) as DrizzleLike<TxOf<TDrizzle>>;
+    return retryWhenDeadlock(async () => {
+      await conn.query('SET TRANSACTION READ ONLY');
+      return dz.transaction(
+        (tx) =>
+          fn({
+            orm: tx,
+            query: async <TRows = unknown>(sql: string, params: unknown[] = []): Promise<TRows> => {
+              const [rows] = (await conn.query(sql, params)) as [unknown, unknown];
+              return rows as TRows;
+            },
+          }),
+        { isolationLevel: 'repeatable read', withConsistentSnapshot: true },
+      );
+    });
+  };
 
   return {
     read<T>(sql: string, params: unknown[] = []): Promise<T[]> {
@@ -274,17 +328,22 @@ export function createHyperdriveDatabase<TDrizzle>(
       );
     },
     query<T = unknown>(sql: string, params: unknown[] = []): Promise<T> {
-      return readWithRecovery(
-        primary,
-        (failedConnection) => {
-          if (primaryConn === failedConnection) {
-            primaryConn = undefined;
-            orm = undefined;
-          }
-        },
-        sql,
-        params,
-      ) as Promise<T>;
+      return readWithRecovery(primary, resetPrimary, sql, params) as Promise<T>;
+    },
+    async readTransaction<T>(fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>): Promise<T> {
+      const connection = primary();
+      const outcome = await runReadTransaction(connection, fn).then(
+        (value) => ({ ok: true, value }) as const,
+        (error: unknown) => ({ ok: false, error }) as const,
+      );
+      if (outcome.ok) {
+        return outcome.value;
+      }
+      if (!isFatalConnectionError(outcome.error)) {
+        throw outcome.error;
+      }
+      resetPrimary(connection);
+      return runReadTransaction(primary(), fn);
     },
     async write<T>(fn: (dz: TDrizzle) => Promise<T>): Promise<T> {
       const dz = await ormFor();
@@ -345,8 +404,16 @@ function isFatalConnectionError(error: unknown): boolean {
   const seen = new Set<unknown>();
   while (typeof current === 'object' && current !== null && !seen.has(current)) {
     seen.add(current);
-    const value = current as { cause?: unknown; fatal?: unknown };
-    if (value.fatal === true) {
+    const value = current as { cause?: unknown; code?: unknown; fatal?: unknown; message?: unknown };
+    if (
+      value.fatal === true ||
+      value.code === 'PROTOCOL_CONNECTION_LOST' ||
+      value.code === 'ECONNRESET' ||
+      value.code === 'EPIPE' ||
+      (typeof value.message === 'string' &&
+        (value.message.includes('Connection lost:') ||
+          value.message.includes("Can't add new command when connection is in closed state")))
+    ) {
       return true;
     }
     current = value.cause;

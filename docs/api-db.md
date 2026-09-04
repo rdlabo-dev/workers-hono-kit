@@ -4,10 +4,10 @@ Requires the `drizzle-orm` and `mysql2` peers. Reads use raw SQL against the rep
 
 | Export | Description |
 | --- | --- |
-| `createHyperdriveDatabase(options)` | `HyperdriveDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. `read()` targets the replica and `query()` targets the primary; either SELECT is repeated at most once on a fresh connection after a fatal mysql2 connection error. Writes and transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
+| `createHyperdriveDatabase(options)` | `HyperdriveDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. `read()` targets the replica, `query()` targets the primary, and `readTransaction()` pins raw and Drizzle reads to one primary consistent snapshot. A SELECT or complete read-only transaction is repeated at most once on a fresh connection after a fatal mysql2 connection error. Writes and write transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
 | `createMysqlDatabase(options)` | Assemble a `Database` from an already-connected Drizzle ORM + replica `QueryRunner`. |
 | `databaseFrom(orm, replica)` | Build a `Database` from an existing Drizzle instance + replica handle. |
-| `Database` / `DisposableDatabase` / `HyperdriveDatabase` / `QueryRunner` / `TxOf` | The `read` / `query` / `write` / `transaction` API and its supporting types. |
+| `Database` / `DisposableDatabase` / `HyperdriveDatabase` / `ReadTransaction` / `QueryRunner` / `TxOf` | The `read` / `query` / `readTransaction` / `write` / `transaction` API and its supporting types. |
 | `hyperdriveConnectionOptions(hyperdrive, overrides?)` / `HyperdriveLike` / `ExecutionContextLike` | Build mysql2 `createConnection` options from a Hyperdrive binding (`disableEval`, `decimalNumbers`, `timezone '+09:00'` by default). `timezone` controls mysql2's JavaScript `Date` conversion; it does not change the MySQL session timezone. |
 | `withMysqlConnections(...)` | Open primary/replica connections in parallel and run a function. Workers cleans them up at invocation end. |
 | `retryWhenDeadlock(fn, retries?, delay?)` | Same deadlock-retry helper as the root export. |

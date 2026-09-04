@@ -17,6 +17,7 @@ export type {
   Database,
   DisposableDatabase,
   HyperdriveDatabase,
+  ReadTransaction,
   QueryRunner,
   TxOf,
   CreateMysqlDatabaseOptions,
