@@ -1,13 +1,13 @@
 # API: `@rdlabo/workers-hono-kit/db`
 
-Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via raw SQL; writes/transactions run against the primary through the Drizzle ORM with deadlock retry. The kit deliberately does not depend on the ORM's type identity — you pass the Drizzle instance in.
+Requires the `drizzle-orm` and `mysql2` peers. Reads use raw SQL against the replica by default, with an explicit primary read path for freshness; writes/transactions run against the primary through the Drizzle ORM with deadlock retry. The kit deliberately does not depend on the ORM's type identity — you pass the Drizzle instance in.
 
 | Export | Description |
 | --- | --- |
-| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. A replica SELECT is repeated at most once on a fresh connection after a fatal mysql2 connection error; writes and transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
+| `createHyperdriveDatabase(options)` | `HyperdriveDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. `read()` targets the replica and `query()` targets the primary; either SELECT is repeated at most once on a fresh connection after a fatal mysql2 connection error. Writes and transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
 | `createMysqlDatabase(options)` | Assemble a `Database` from an already-connected Drizzle ORM + replica `QueryRunner`. |
 | `databaseFrom(orm, replica)` | Build a `Database` from an existing Drizzle instance + replica handle. |
-| `Database` / `DisposableDatabase` / `QueryRunner` / `TxOf` | The `read` / `write` / `transaction` API and its supporting types. |
+| `Database` / `DisposableDatabase` / `HyperdriveDatabase` / `QueryRunner` / `TxOf` | The `read` / `query` / `write` / `transaction` API and its supporting types. |
 | `hyperdriveConnectionOptions(hyperdrive, overrides?)` / `HyperdriveLike` / `ExecutionContextLike` | Build mysql2 `createConnection` options from a Hyperdrive binding (`disableEval`, `decimalNumbers`, `timezone '+09:00'` by default). `timezone` controls mysql2's JavaScript `Date` conversion; it does not change the MySQL session timezone. |
 | `withMysqlConnections(...)` | Open primary/replica connections in parallel and run a function. Workers cleans them up at invocation end. |
 | `retryWhenDeadlock(fn, retries?, delay?)` | Same deadlock-retry helper as the root export. |

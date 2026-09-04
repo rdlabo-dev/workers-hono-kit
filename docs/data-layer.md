@@ -2,7 +2,7 @@ Import database helpers from `@rdlabo/workers-hono-kit/db`. This entry point req
 
 ## Hyperdrive database
 
-`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. Reads use the replica query runner; writes and transactions use the primary Drizzle instance. After a fatal mysql2 connection error, a replica read opens a fresh connection and repeats the SELECT at most once. Writes and transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
+`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. `read()` uses the replica query runner; `query()` provides an explicit raw primary SELECT for read-after-write consistency; writes and transactions use the primary Drizzle instance. After a fatal mysql2 connection error, either read path opens a fresh connection and repeats the SELECT at most once. Writes and transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
 
 ```ts
 import { createHyperdriveDatabase } from '@rdlabo/workers-hono-kit/db';
@@ -15,6 +15,7 @@ const db = createHyperdriveDatabase({
 });
 
 const rows = await db.read<Item>('SELECT * FROM items WHERE id = ?', [id]);
+const freshRows = await db.query<Item[]>('SELECT * FROM items WHERE id = ?', [id]);
 await db.write((dz) => dz.insert(items).values(input));
 await db.transaction((tx) => tx.insert(items).values(input));
 ```

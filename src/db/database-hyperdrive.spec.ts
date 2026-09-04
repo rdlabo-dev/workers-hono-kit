@@ -1,3 +1,4 @@
+import type { Connection } from 'mysql2/promise';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HyperdriveLike } from './connection.js';
 import { createHyperdriveDatabase } from './database.js';
@@ -73,6 +74,47 @@ describe('createHyperdriveDatabase lifecycle', () => {
     });
 
     await expect(Promise.all([db.read('SELECT 1'), db.read('SELECT 2')])).resolves.toEqual([[], []]);
+    expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+    expect(secondQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconnects a failed primary read and replaces an already-cached ORM', async () => {
+    const closed = Object.assign(new Error('Connection lost: The server closed the connection.'), {
+      code: 'PROTOCOL_CONNECTION_LOST',
+      fatal: true,
+    });
+    const firstQuery = vi.fn().mockRejectedValue(closed);
+    const secondQuery = vi.fn().mockResolvedValue([[{ id: 7 }], []]);
+    const firstConnection = { query: firstQuery };
+    const secondConnection = { query: secondQuery };
+    mocks.createConnection.mockResolvedValueOnce(firstConnection).mockResolvedValueOnce(secondConnection);
+    const createOrm = vi.fn((connection: Connection) => ({ connection, transaction: vi.fn() }));
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm,
+    });
+
+    await expect(db.write(async (orm) => orm.connection)).resolves.toBe(firstConnection);
+    await expect(db.query<{ id: number }[]>('SELECT 7 AS id')).resolves.toEqual([{ id: 7 }]);
+    await expect(db.write(async (orm) => orm.connection)).resolves.toBe(secondConnection);
+
+    expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+    expect(createOrm).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares a replacement connection between concurrent failed primary reads', async () => {
+    const closed = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET', fatal: true });
+    const firstQuery = vi.fn().mockRejectedValue(closed);
+    const secondQuery = vi.fn().mockResolvedValue([[], []]);
+    mocks.createConnection.mockResolvedValueOnce({ query: firstQuery }).mockResolvedValueOnce({ query: secondQuery });
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm: () => ({ transaction: vi.fn() }),
+    });
+
+    await expect(Promise.all([db.query('SELECT 1'), db.query('SELECT 2')])).resolves.toEqual([[], []]);
     expect(mocks.createConnection).toHaveBeenCalledTimes(2);
     expect(secondQuery).toHaveBeenCalledTimes(2);
   });
