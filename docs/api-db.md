@@ -1,13 +1,13 @@
 # API: `@rdlabo/workers-hono-kit/db`
 
-Requires the `drizzle-orm` and `mysql2` peers. Reads run against a replica via raw SQL; writes/transactions run against the primary through the Drizzle ORM with deadlock retry. The kit deliberately does not depend on the ORM's type identity — you pass the Drizzle instance in.
+Requires the `drizzle-orm` and `mysql2` peers. Reads use raw SQL against the replica by default, with an explicit primary read path for freshness; writes/transactions run against the primary through the Drizzle ORM with deadlock retry. The kit deliberately does not depend on the ORM's type identity — you pass the Drizzle instance in.
 
 | Export | Description |
 | --- | --- |
-| `createHyperdriveDatabase(options)` | `DisposableDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. Workers cleans them up at invocation end; the legacy `dispose()` is a no-op. |
+| `createHyperdriveDatabase(options)` | `HyperdriveDatabase` that lazily opens primary/replica connections from Hyperdrive bindings per request. `read()` targets the replica, `query()` targets the primary, and `readTransaction()` pins raw and Drizzle reads to one primary consistent snapshot. Read transactions are serialized on a separately cached connection and must not be recursively nested. A SELECT or complete read-only transaction is repeated at most once on a fresh connection after a fatal mysql2 connection error. Writes and write transactions are not repeated. Workers cleans connections up at invocation end; the legacy `dispose()` is a no-op. |
 | `createMysqlDatabase(options)` | Assemble a `Database` from an already-connected Drizzle ORM + replica `QueryRunner`. |
 | `databaseFrom(orm, replica)` | Build a `Database` from an existing Drizzle instance + replica handle. |
-| `Database` / `DisposableDatabase` / `QueryRunner` / `TxOf` | The `read` / `write` / `transaction` API and its supporting types. |
+| `Database` / `DisposableDatabase` / `HyperdriveDatabase` / `ReadTransaction` / `QueryRunner` / `TxOf` | The `read` / `query` / `readTransaction` / `write` / `transaction` API and its supporting types. |
 | `hyperdriveConnectionOptions(hyperdrive, overrides?)` / `HyperdriveLike` / `ExecutionContextLike` | Build mysql2 `createConnection` options from a Hyperdrive binding (`disableEval`, `decimalNumbers`, `timezone '+09:00'` by default). `timezone` controls mysql2's JavaScript `Date` conversion; it does not change the MySQL session timezone. |
 | `withMysqlConnections(...)` | Open primary/replica connections in parallel and run a function. Workers cleans them up at invocation end. |
 | `retryWhenDeadlock(fn, retries?, delay?)` | Same deadlock-retry helper as the root export. |

@@ -10,8 +10,8 @@ import { retryWhenDeadlock } from './retry.js';
  * @remarks
  * The two sides of the database are deliberately handled differently:
  *
- * - Reads go to the **replica** as raw SQL (`QueryRunner.query`) for transparency, returning plain
- *   rows.
+ * - Reads go to the **replica** as raw SQL (`QueryRunner.query`) by default, returning plain rows.
+ *   Hyperdrive-backed databases also expose `query()` for freshness-sensitive primary SELECTs.
  * - Writes and transactions go to the **primary** through the Drizzle ORM for type safety, but only
  *   via `write(fn)` / `transaction(fn)` — the raw query builder is never exposed. The builder is
  *   awaited inside those methods, which removes a foot-gun: a Drizzle builder is a lazy thenable, so
@@ -62,7 +62,8 @@ export type TxOf<TDrizzle> = TDrizzle extends {
  */
 export interface Database<TDrizzle, TTx = TxOf<TDrizzle>> {
   /**
-   * Run a raw SQL read against the replica, with deadlock retry.
+   * Run a raw SQL read against the replica. Hyperdrive-backed databases retry deadlocks and repeat
+   * the SELECT once on a fresh connection after mysql2 reports a fatal connection error.
    *
    * @typeParam T - the row shape.
    * @param sql - the SQL text, with `?` placeholders for `params`.
@@ -109,8 +110,62 @@ export interface DisposableDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends Data
   dispose(): Promise<void>;
 }
 
+/**
+ * A Hyperdrive-backed database with an explicit primary query path.
+ *
+ * @remarks
+ * Use `query()` only for SELECTs that require read-after-write consistency or cannot use the
+ * configured replica. Fatal connection errors recreate the primary connection and repeat the
+ * SELECT at most once. Writes and transactions are never repeated for connection errors.
+ * Read-only transactions are serialized on a separately cached primary connection so their
+ * snapshot boundaries cannot mix with ordinary primary operations or with each other. Do not call
+ * `readTransaction()` recursively from its own callback.
+ *
+ * @typeParam TDrizzle - the consumer's Drizzle ORM type.
+ * @typeParam TTx - the transaction-handle type, inferred from `TDrizzle` by default.
+ */
+export interface HyperdriveDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends DisposableDatabase<TDrizzle, TTx> {
+  /**
+   * Run a raw SQL SELECT against the primary database.
+   *
+   * @typeParam T - the complete rows result type (for example, `User[]`).
+   * @param sql - the SQL text, with `?` placeholders for `params`.
+   * @param params - optional positional parameters.
+   * @returns the rows returned by the query, typed as `T`.
+   */
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T>;
+  /**
+   * Run a repeatable-read, consistent snapshot on the primary database.
+   *
+   * @remarks
+   * The callback is repeated at most once on a fresh connection after a fatal connection error.
+   * This is safe only because the transaction is declared read-only. Use {@link transaction} for
+   * writes; write transactions are never repeated after connection loss. Calls are serialized on
+   * one dedicated connection, so recursive `readTransaction()` calls are not supported.
+   */
+  readTransaction<T>(fn: (reader: ReadTransaction<TTx>) => Promise<T>): Promise<T>;
+}
+
+/** Primary read-only transaction handles that share one consistent snapshot. */
+export interface ReadTransaction<TTx> {
+  /**
+   * The consumer's Drizzle transaction handle.
+   *
+   * @remarks
+   * Drizzle's type does not distinguish read-only transactions. MySQL enforces read-only mode at
+   * runtime; applications may expose a narrower SELECT-only facade when they need compile-time
+   * enforcement.
+   */
+  orm: TTx;
+  /** Run raw SQL on the same primary connection and snapshot. */
+  query: <T = unknown>(sql: string, params?: unknown[]) => Promise<T>;
+}
+
 interface DrizzleLike<TTx> {
-  transaction<T>(cb: (tx: TTx) => Promise<T>): Promise<T>;
+  transaction<T>(
+    cb: (tx: TTx) => Promise<T>,
+    config?: { isolationLevel?: string; withConsistentSnapshot?: boolean },
+  ): Promise<T>;
 }
 
 /**
@@ -175,17 +230,19 @@ export interface CreateHyperdriveDatabaseOptions<TDrizzle> {
 }
 
 /**
- * Create a {@link DisposableDatabase} that lazily opens its connections from Hyperdrive bindings.
+ * Create a {@link HyperdriveDatabase} that lazily opens its connections from Hyperdrive bindings.
  *
  * @remarks
  * Construct one per request. Connections and the ORM are created on first use and reused for the
- * lifetime of the instance; the read/write/transaction surface is identical to
- * {@link createMysqlDatabase}. Workers automatically cleans up connections at the end of the
- * invocation, so callers do not need to close them manually.
+ * lifetime of the instance. `read()` uses the replica, while `query()` provides an explicit
+ * primary SELECT path. Workers automatically cleans up connections at the end of the invocation,
+ * so callers do not need to close them manually. Either SELECT path is repeated once on a fresh
+ * connection after a fatal mysql2 connection error. Writes and transactions are never repeated
+ * for connection errors because their commit state can be ambiguous.
  *
  * @typeParam TDrizzle - the consumer's Drizzle ORM type.
  * @param options - the primary/replica Hyperdrive bindings, the ORM factory, and connection options.
- * @returns a {@link DisposableDatabase} whose compatibility `dispose()` method is a no-op; Workers
+ * @returns a {@link HyperdriveDatabase} whose compatibility `dispose()` method is a no-op; Workers
  *   cleans up its invocation-scoped connections automatically.
  * @example
  * ```ts
@@ -199,21 +256,118 @@ export interface CreateHyperdriveDatabaseOptions<TDrizzle> {
  */
 export function createHyperdriveDatabase<TDrizzle>(
   options: CreateHyperdriveDatabaseOptions<TDrizzle>,
-): DisposableDatabase<TDrizzle> {
+): HyperdriveDatabase<TDrizzle> {
   const { primaryHyperdrive, replicaHyperdrive, createOrm, connectionOptions } = options;
   let primaryConn: Promise<Connection> | undefined;
   let replicaConn: Promise<Connection> | undefined;
+  let readTransactionConn: Promise<Connection> | undefined;
   let orm: TDrizzle | undefined;
+  let readTransactionOrm: TDrizzle | undefined;
+  let readTransactionTail: Promise<void> | undefined;
 
   const primary = (): Promise<Connection> => (primaryConn ??= connect(primaryHyperdrive, connectionOptions));
   const replica = (): Promise<Connection> => (replicaConn ??= connect(replicaHyperdrive, connectionOptions));
+  const readTransactionConnection = (): Promise<Connection> =>
+    (readTransactionConn ??= connect(primaryHyperdrive, connectionOptions));
   const ormFor = async (): Promise<TDrizzle> => (orm ??= createOrm(await primary()));
+  const readFrom = <T>(connection: Promise<Connection>, sql: string, params: unknown[]): Promise<T[]> =>
+    retryWhenDeadlock(async () => {
+      const [rows] = (await (await connection).query(sql, params)) as [unknown, unknown];
+      return rows as T[];
+    });
+  const readWithRecovery = async <T>(
+    connectionFor: () => Promise<Connection>,
+    reset: (failedConnection: Promise<Connection>) => void,
+    sql: string,
+    params: unknown[],
+  ): Promise<T[]> => {
+    const connection = connectionFor();
+    const outcome = await readFrom<T>(connection, sql, params).then(
+      (rows) => ({ ok: true, rows }) as const,
+      (error: unknown) => ({ ok: false, error }) as const,
+    );
+    if (outcome.ok) {
+      return outcome.rows;
+    }
+    if (!isFatalConnectionError(outcome.error)) {
+      throw outcome.error;
+    }
+    reset(connection);
+    return readFrom<T>(connectionFor(), sql, params);
+  };
+  const resetPrimary = (failedConnection: Promise<Connection>): void => {
+    if (primaryConn === failedConnection) {
+      primaryConn = undefined;
+      orm = undefined;
+    }
+  };
+  const resetReadTransaction = (failedConnection: Promise<Connection>): void => {
+    if (readTransactionConn === failedConnection) {
+      readTransactionConn = undefined;
+      readTransactionOrm = undefined;
+    }
+  };
+  const withReadTransactionLock = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = readTransactionTail ? readTransactionTail.then(fn, fn) : fn();
+    readTransactionTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  };
+  const runReadTransaction = async <T>(
+    connection: Promise<Connection>,
+    fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>,
+  ): Promise<T> => {
+    const conn = await connection;
+    const dz = (readTransactionOrm ??= createOrm(conn)) as DrizzleLike<TxOf<TDrizzle>>;
+    return retryWhenDeadlock(async () => {
+      await conn.query('SET TRANSACTION READ ONLY');
+      return dz.transaction(
+        (tx) =>
+          fn({
+            orm: tx,
+            query: async <TRows = unknown>(sql: string, params: unknown[] = []): Promise<TRows> => {
+              const [rows] = (await conn.query(sql, params)) as [unknown, unknown];
+              return rows as TRows;
+            },
+          }),
+        { isolationLevel: 'repeatable read', withConsistentSnapshot: true },
+      );
+    });
+  };
 
   return {
     read<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-      return retryWhenDeadlock(async () => {
-        const [rows] = (await (await replica()).query(sql, params)) as [unknown, unknown];
-        return rows as T[];
+      return readWithRecovery(
+        replica,
+        (failedConnection) => {
+          if (replicaConn === failedConnection) {
+            replicaConn = undefined;
+          }
+        },
+        sql,
+        params,
+      );
+    },
+    query<T = unknown>(sql: string, params: unknown[] = []): Promise<T> {
+      return readWithRecovery(primary, resetPrimary, sql, params) as Promise<T>;
+    },
+    async readTransaction<T>(fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>): Promise<T> {
+      return withReadTransactionLock(async () => {
+        const connection = readTransactionConnection();
+        const outcome = await runReadTransaction(connection, fn).then(
+          (value) => ({ ok: true, value }) as const,
+          (error: unknown) => ({ ok: false, error }) as const,
+        );
+        if (outcome.ok) {
+          return outcome.value;
+        }
+        if (!isFatalConnectionError(outcome.error)) {
+          throw outcome.error;
+        }
+        resetReadTransaction(connection);
+        return runReadTransaction(readTransactionConnection(), fn);
       });
     },
     async write<T>(fn: (dz: TDrizzle) => Promise<T>): Promise<T> {
@@ -268,4 +422,26 @@ export type { Connection, Pool };
 
 function connect(hyperdrive: HyperdriveLike, extra?: Record<string, unknown>): Promise<Connection> {
   return createConnection(hyperdriveConnectionOptions(hyperdrive, extra));
+}
+
+function isFatalConnectionError(error: unknown): boolean {
+  let current = error;
+  const seen = new Set<unknown>();
+  while (typeof current === 'object' && current !== null && !seen.has(current)) {
+    seen.add(current);
+    const value = current as { cause?: unknown; code?: unknown; fatal?: unknown; message?: unknown };
+    if (
+      value.fatal === true ||
+      value.code === 'PROTOCOL_CONNECTION_LOST' ||
+      value.code === 'ECONNRESET' ||
+      value.code === 'EPIPE' ||
+      (typeof value.message === 'string' &&
+        (value.message.includes('Connection lost:') ||
+          value.message.includes("Can't add new command when connection is in closed state")))
+    ) {
+      return true;
+    }
+    current = value.cause;
+  }
+  return false;
 }

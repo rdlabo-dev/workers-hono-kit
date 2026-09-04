@@ -2,7 +2,7 @@ Import database helpers from `@rdlabo/workers-hono-kit/db`. This entry point req
 
 ## Hyperdrive database
 
-`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. Reads use the replica query runner; writes and transactions use the primary Drizzle instance. Workers owns connection cleanup at invocation end.
+`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. `read()` uses the replica query runner; `query()` provides an explicit raw primary SELECT for read-after-write consistency; writes and transactions use the primary Drizzle instance. `readTransaction()` runs Drizzle and raw reads against one primary repeatable-read snapshot. Read transactions are serialized on one separately cached connection so their boundaries cannot mix with each other or with ordinary primary operations. After a fatal mysql2 connection error, a single read or the complete read-only transaction opens a fresh connection and repeats at most once. Writes and write transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
 
 ```ts
 import { createHyperdriveDatabase } from '@rdlabo/workers-hono-kit/db';
@@ -15,9 +15,19 @@ const db = createHyperdriveDatabase({
 });
 
 const rows = await db.read<Item>('SELECT * FROM items WHERE id = ?', [id]);
+const freshRows = await db.query<Item[]>('SELECT * FROM items WHERE id = ?', [id]);
 await db.write((dz) => dz.insert(items).values(input));
 await db.transaction((tx) => tx.insert(items).values(input));
+
+const snapshot = await db.readTransaction(async ({ orm, query }) => ({
+  items: await orm.select().from(items),
+  count: await query<{ count: number }[]>('SELECT COUNT(*) count FROM items'),
+}));
 ```
+
+MySQL enforces `READ ONLY` for every transaction attempt. Drizzle does not provide a distinct read-only transaction type, so applications can wrap `orm` in a SELECT-only facade when they also want compile-time enforcement.
+
+Do not call `readTransaction()` recursively from inside its callback. Calls share one serialized snapshot lane, so a nested call would wait for its own outer transaction to finish. Consumers that expose nested snapshot helpers should reuse the outer reader instead.
 
 Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connections. The default JavaScript date conversion timezone is `+09:00`; it does not change the MySQL session timezone.
 
@@ -29,7 +39,7 @@ Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connect
 
 ## Drizzle and JST helpers
 
-Use `jstTimestamp`, `jstDatetime`, `jstDate`, and `decimalNumber` for shared column behavior. Pair update timestamps with `jstOnUpdateNow()` because custom timestamp types do not expose Drizzle's `.onUpdateNow()`.
+Use `jstTimestamp`, `jstDatetime`, and `jstDate` for shared date behavior. Pair update timestamps with `jstOnUpdateNow()` because custom timestamp types do not expose Drizzle's `.onUpdateNow()`. For decimal columns, use Drizzle's `decimal(name, { precision, scale, mode: 'number' })` directly.
 
 The `/business-time` entry point converts instants and business dates in the JST business timezone:
 

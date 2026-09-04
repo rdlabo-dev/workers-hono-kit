@@ -42,6 +42,16 @@ describe('retryWhenDeadlock', () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
+  it('causeに包まれたER_LOCK_DEADLOCKもretryする', async () => {
+    const fn = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new Error('Failed query', { cause: deadlock() }))
+      .mockResolvedValueOnce('recovered');
+
+    await expect(retryWhenDeadlock(fn, 2, 1)).resolves.toBe('recovered');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
   it('retry を使い切ってもデッドロックなら最後のエラーを投げる', async () => {
     const fn = vi.fn(async () => {
       throw deadlock();
