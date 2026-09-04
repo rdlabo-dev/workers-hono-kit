@@ -49,9 +49,7 @@ if (!conn.database) {
   process.exit(1);
 }
 
-console.log(
-  `[db:baseline] target = ${conn.user}@${conn.host}:${conn.port}/${conn.database} (migrations: ${migrationsFolder})`,
-);
+console.log('[db:baseline] database target configured.');
 
 const db = await createConnection(conn);
 try {
