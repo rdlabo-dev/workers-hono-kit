@@ -297,7 +297,7 @@ export function createHyperdriveDatabase<TDrizzle>(
     fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>,
   ): Promise<T> => {
     const conn = await connection;
-    const dz = (orm ??= createOrm(conn)) as DrizzleLike<TxOf<TDrizzle>>;
+    const dz = createOrm(conn) as DrizzleLike<TxOf<TDrizzle>>;
     return retryWhenDeadlock(async () => {
       await conn.query('SET TRANSACTION READ ONLY');
       return dz.transaction(
@@ -331,7 +331,7 @@ export function createHyperdriveDatabase<TDrizzle>(
       return readWithRecovery(primary, resetPrimary, sql, params) as Promise<T>;
     },
     async readTransaction<T>(fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>): Promise<T> {
-      const connection = primary();
+      const connection = connect(primaryHyperdrive, connectionOptions);
       const outcome = await runReadTransaction(connection, fn).then(
         (value) => ({ ok: true, value }) as const,
         (error: unknown) => ({ ok: false, error }) as const,
@@ -342,8 +342,7 @@ export function createHyperdriveDatabase<TDrizzle>(
       if (!isFatalConnectionError(outcome.error)) {
         throw outcome.error;
       }
-      resetPrimary(connection);
-      return runReadTransaction(primary(), fn);
+      return runReadTransaction(connect(primaryHyperdrive, connectionOptions), fn);
     },
     async write<T>(fn: (dz: TDrizzle) => Promise<T>): Promise<T> {
       const dz = await ormFor();

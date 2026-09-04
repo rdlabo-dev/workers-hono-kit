@@ -158,7 +158,11 @@ describe('createHyperdriveDatabase lifecycle', () => {
       .mockResolvedValueOnce([[{ id: 7 }], []]);
     const firstConnection = { query: firstQuery };
     const secondConnection = { query: secondQuery };
-    mocks.createConnection.mockResolvedValueOnce(firstConnection).mockResolvedValueOnce(secondConnection);
+    const sharedConnection = { query: vi.fn() };
+    mocks.createConnection
+      .mockResolvedValueOnce(firstConnection)
+      .mockResolvedValueOnce(secondConnection)
+      .mockResolvedValueOnce(sharedConnection);
     const createOrm = vi.fn((connection: Connection) => ({
       connection,
       transaction: (fn: (tx: string) => Promise<unknown>) => fn('tx'),
@@ -173,12 +177,48 @@ describe('createHyperdriveDatabase lifecycle', () => {
     );
 
     await expect(db.readTransaction(operation)).resolves.toEqual([{ id: 7 }]);
-    await expect(db.write(async (orm) => orm.connection)).resolves.toBe(secondConnection);
+    await expect(db.write(async (orm) => orm.connection)).resolves.toBe(sharedConnection);
 
     expect(operation).toHaveBeenCalledTimes(2);
-    expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+    expect(mocks.createConnection).toHaveBeenCalledTimes(3);
     expect(createOrm).toHaveBeenNthCalledWith(1, firstConnection);
     expect(createOrm).toHaveBeenNthCalledWith(2, secondConnection);
+    expect(createOrm).toHaveBeenNthCalledWith(3, sharedConnection);
+  });
+
+  it('isolates a concurrent primary write from the read-only snapshot connection', async () => {
+    let finishSnapshot: (() => void) | undefined;
+    const snapshotBlocked = new Promise<void>((resolve) => {
+      finishSnapshot = resolve;
+    });
+    let snapshotStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      snapshotStarted = resolve;
+    });
+    const snapshotConnection = { query: vi.fn().mockResolvedValue([[], []]) };
+    const writeConnection = { query: vi.fn() };
+    mocks.createConnection.mockResolvedValueOnce(snapshotConnection).mockResolvedValueOnce(writeConnection);
+    const createOrm = vi.fn((connection: Connection) => ({
+      connection,
+      transaction: (fn: (tx: string) => Promise<unknown>) => fn('tx'),
+    }));
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm,
+    });
+
+    const snapshot = db.readTransaction(async () => {
+      snapshotStarted?.();
+      await snapshotBlocked;
+    });
+    await started;
+    await expect(db.write(async (orm) => orm.connection)).resolves.toBe(writeConnection);
+    finishSnapshot?.();
+    await snapshot;
+
+    expect(createOrm).toHaveBeenNthCalledWith(1, snapshotConnection);
+    expect(createOrm).toHaveBeenNthCalledWith(2, writeConnection);
   });
 
   it('sets READ ONLY before every deadlock retry attempt', async () => {

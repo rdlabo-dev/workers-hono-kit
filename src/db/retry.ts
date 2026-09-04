@@ -35,8 +35,7 @@ export async function retryWhenDeadlock<T>(fn: () => Promise<T>, retries = 3, de
     if (outcome.ok) {
       return outcome.value;
     }
-    const code = (outcome.error as { code?: string }).code;
-    if (code === 'ER_LOCK_DEADLOCK' && attempt < retries - 1) {
+    if (isDeadlock(outcome.error) && attempt < retries - 1) {
       await new Promise((resolve) => setTimeout(resolve, delay * (attempt + 1)));
       continue;
     }
@@ -44,4 +43,18 @@ export async function retryWhenDeadlock<T>(fn: () => Promise<T>, retries = 3, de
   }
   // Unreachable: the loop returns on success and throws on the final failed attempt.
   throw new Error('retryWhenDeadlock: exhausted retries');
+}
+
+function isDeadlock(error: unknown): boolean {
+  let current = error;
+  const seen = new Set<unknown>();
+  while (typeof current === 'object' && current !== null && !seen.has(current)) {
+    seen.add(current);
+    const value = current as { cause?: unknown; code?: unknown };
+    if (value.code === 'ER_LOCK_DEADLOCK') {
+      return true;
+    }
+    current = value.cause;
+  }
+  return false;
 }
