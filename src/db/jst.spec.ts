@@ -1,3 +1,4 @@
+import { initializeTimezone } from '@rdlabo/workers-timezone';
 import { describe, it, expect } from 'vitest';
 import { toJstDate } from './jst.js';
 
@@ -23,5 +24,10 @@ describe('toJstDate (DATE 列 toDriver)', () => {
   it('applies the JST (+9h) offset, rolling to the next day past 15:00 UTC', () => {
     expect(toJstDate('2026-06-22T15:30:00.000Z')).toBe('2026-06-23');
     expect(toJstDate('2026-06-22T20:00:00.000Z')).toBe('2026-06-23');
+  });
+
+  it('remains pinned to JST after the application initializes another default timezone', () => {
+    initializeTimezone({ timeZone: 'America/New_York' });
+    expect(toJstDate('2026-07-01T02:00:00.000Z')).toBe('2026-07-01');
   });
 });

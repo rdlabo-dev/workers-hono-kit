@@ -7,7 +7,7 @@
  * `customType` params.
  */
 
-import { normalizeBusinessDate } from '../business-time/index.js';
+import { TIME_ZONES, normalizeBusinessDate } from '../business-time/index.js';
 import type { BusinessDate } from '../business-time/index.js';
 
 /** Default mysql2 connection `timezone` (for the existing JST DB deployment). */
@@ -22,7 +22,7 @@ export const MYSQL_TIMEZONE = '+09:00';
  * @returns the business date as `YYYY-MM-DD`, or `null` when the input cannot be resolved.
  */
 export function toJstDate(value: string | null | undefined): BusinessDate | null {
-  return normalizeBusinessDate(value ?? null);
+  return normalizeBusinessDate(value ?? null, TIME_ZONES.TOKYO);
 }
 
 /**

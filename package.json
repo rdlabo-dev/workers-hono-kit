@@ -92,21 +92,21 @@
     "build": "npm run build --workspace @rdlabo/workers-timezone && node scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "typecheck": "npm run typecheck --workspace @rdlabo/workers-timezone && tsc --noEmit",
-    "test": "npm test --workspace @rdlabo/workers-timezone && vitest run",
+    "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "npm run lint --workspace @rdlabo/workers-timezone && eslint \"src/**/*.ts\"",
-    "lint:fix": "npm run lint:fix --workspace @rdlabo/workers-timezone && eslint \"src/**/*.ts\" --fix",
+    "lint": "eslint \"src/**/*.ts\" \"packages/timezone/src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"packages/timezone/src/**/*.ts\" --fix",
     "test:package": "node scripts/workspace-package-smoke.mjs",
-    "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.ts\" \"packages/**/*.mjs\" \"packages/**/*.md\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"packages/**/*.ts\" \"packages/**/*.mjs\" \"packages/**/*.md\"",
+    "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
     "release": "np --no-tests --no-publish"
   },
   "dependencies": {
-    "@rdlabo/workers-timezone": "0.1.0",
     "stripe": "^20.4.1"
   },
   "peerDependencies": {
     "@hono/zod-validator": "^0.8.0",
+    "@rdlabo/workers-timezone": "^0.1.0",
     "ai": "^6.0.0",
     "ai-gateway-provider": "^3.1.0",
     "aws4fetch": "^1.0.20",

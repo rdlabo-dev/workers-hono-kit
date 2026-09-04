@@ -21,7 +21,7 @@ timezone override without changing the module-instance default.
 | `toLocalDate(instant, timeZone?)`               | Instant to local `YYYY-MM-DD`.                                                   |
 | `toLocalDateTime(instant, timeZone?)`           | Instant to local `YYYY-MM-DD HH:mm:ss`.                                          |
 | `localDateTimeToInstant(date, time, timeZone?)` | Local calendar date and wall clock to an instant.                                |
-| `startOfDay` / `endOfDay`                       | First or final whole second of a local calendar day.                             |
+| `startOfDay` / `endOfDay`                       | First or final representable whole second of a local calendar day.               |
 | `addDays(date, days)`                           | Add calendar days without assuming a 24-hour day.                                |
 | `TIME_ZONES` / `TimeZone`                       | Common typed constants and the open IANA timezone type.                          |
 
@@ -34,6 +34,11 @@ IANA rules determine daylight-saving and historical offsets. A skipped local clo
 `@rdlabo/workers-timezone`. Existing names such as `today`, `normalizeBusinessDate`,
 `toBusinessDateTime`, `businessDateTimeInstant`, `formatBusinessDateTime`, and
 `ageOnBusinessDate` remain available during migration.
+
+This is source compatibility for API names and valid values, not preservation of permissive invalid
+input handling. Impossible `YYYY-MM-DD` values now normalize to `null`; invalid date-time
+construction and parsing throw `RangeError` instead of using JavaScript `Date` rollover. Treat this
+validation change as breaking when planning the migration.
 
 ```ts
 // Deprecated; migrate the import path when practical.

@@ -3,7 +3,7 @@
 `@rdlabo/workers-hono-kit` provides infrastructure-layer helpers for Hono on Cloudflare Workers. Domain logic, database schemas, and application-specific policy stay in the consuming application.
 
 ```sh
-npm install @rdlabo/workers-hono-kit
+npm install @rdlabo/workers-hono-kit @rdlabo/workers-timezone
 ```
 
 Install only the peer dependencies required by the features you use:
@@ -44,6 +44,16 @@ import { TIME_ZONES, initializeTimezone } from '@rdlabo/workers-timezone';
 initializeTimezone({ timeZone: TIME_ZONES.NEW_YORK });
 ```
 
+Install `@rdlabo/workers-timezone` as a direct dependency before importing it. Keeping one version
+in the application dependency graph also ensures that the canonical import and the deprecated
+`@rdlabo/workers-hono-kit/business-time` subpath share the same module-level configuration.
+
+The compatibility subpath preserves the existing API names and the default `Asia/Tokyo` behavior
+for valid values. It now validates calendar and wall-clock inputs strictly: impossible date-only
+values normalize to `null`, while invalid date-time construction and parsing throw `RangeError`
+instead of relying on JavaScript `Date` rollover. Treat this validation change as breaking when
+planning an upgrade.
+
 ## Documentation
 
 - [HTTP and Authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth)
@@ -67,6 +77,12 @@ Publication may be enabled only after the timezone package becomes public, versi
 ranges are synchronized, and release automation publishes timezone before hono-kit. Candidate
 publication additionally requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true` and
 revalidates `packages/timezone/package.json` as non-private immediately before publishing.
+
+Until then, install both downloaded candidate tarballs together when testing the package boundary:
+
+```sh
+npm install ./rdlabo-workers-timezone-0.1.0.tgz ./rdlabo-workers-hono-kit-<version>.tgz
+```
 
 ## Maintainers
 

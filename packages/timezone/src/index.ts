@@ -28,11 +28,18 @@ interface DateTimeFields {
   second: number;
 }
 
+interface OffsetPeriod {
+  start: number;
+  end: number;
+  offset: number;
+}
+
 const formatters = new Map<string, Intl.DateTimeFormat>();
 let configuredTimeZone: TimeZone | undefined;
 
 function formatter(timeZone: TimeZone): Intl.DateTimeFormat {
-  let result = formatters.get(timeZone);
+  const cacheKey = timeZone.toLowerCase();
+  let result = formatters.get(cacheKey);
   if (!result) {
     result = new Intl.DateTimeFormat('en-US', {
       timeZone,
@@ -46,7 +53,7 @@ function formatter(timeZone: TimeZone): Intl.DateTimeFormat {
       minute: '2-digit',
       second: '2-digit',
     });
-    formatters.set(timeZone, result);
+    formatters.set(cacheKey, result);
   }
   return result;
 }
@@ -60,6 +67,11 @@ function utcMillis(fields: DateTimeFields): number {
   result.setUTCFullYear(fields.year, fields.month - 1, fields.day);
   result.setUTCHours(fields.hour, fields.minute, fields.second, 0);
   return result.getTime();
+}
+
+function offsetAt(epochMilliseconds: number, timeZone: TimeZone): number {
+  const instant = new Date(epochMilliseconds);
+  return utcMillis(fieldsAt(instant, timeZone)) - epochMilliseconds;
 }
 
 function fieldsAt(instant: Date, timeZone: TimeZone): DateTimeFields {
@@ -136,13 +148,77 @@ function parseTime(time: string): [number, number, number] {
   return [Number(hour), Number(minute), Number(seconds)];
 }
 
+const HOUR_MILLISECONDS = 3_600_000;
+const DAY_MILLISECONDS = 24 * HOUR_MILLISECONDS;
+const OFFSET_PROBE_INTERVAL = 6 * HOUR_MILLISECONDS;
+const BOUNDARY_WINDOW = 36 * HOUR_MILLISECONDS;
+
+function findOffsetTransition(start: number, end: number, startOffset: number, timeZone: TimeZone): number {
+  let lower = start;
+  let upper = end;
+  while (upper - lower > 1_000) {
+    const middle = Math.floor((lower + upper) / 2_000) * 1_000;
+    if (offsetAt(middle, timeZone) === startOffset) {
+      lower = middle;
+    } else {
+      upper = middle;
+    }
+  }
+  return upper;
+}
+
+function offsetPeriodsForLocalDay(naiveStart: number, timeZone: TimeZone): OffsetPeriod[] {
+  const windowStart = naiveStart - BOUNDARY_WINDOW;
+  const windowEnd = naiveStart + DAY_MILLISECONDS + BOUNDARY_WINDOW;
+  const periods: OffsetPeriod[] = [];
+  let periodStart = windowStart;
+  let cursor = windowStart;
+  let currentOffset = offsetAt(cursor, timeZone);
+
+  while (cursor < windowEnd) {
+    const next = Math.min(cursor + OFFSET_PROBE_INTERVAL, windowEnd);
+    const nextOffset = offsetAt(next, timeZone);
+    if (nextOffset !== currentOffset) {
+      const transition = findOffsetTransition(cursor, next, currentOffset, timeZone);
+      periods.push({ start: periodStart, end: transition, offset: currentOffset });
+      periodStart = transition;
+      currentOffset = nextOffset;
+    }
+    cursor = next;
+  }
+  periods.push({ start: periodStart, end: windowEnd, offset: currentOffset });
+  return periods;
+}
+
+function localDayBoundaries(date: BusinessDate, timeZone: TimeZone): { start: Date; end: Date } {
+  const [year, month, day] = parseDate(date);
+  const naiveStart = utcMillis({ year, month, day, hour: 0, minute: 0, second: 0 });
+  const naiveEnd = naiveStart + DAY_MILLISECONDS;
+  let first = Number.POSITIVE_INFINITY;
+  let endExclusive = Number.NEGATIVE_INFINITY;
+
+  for (const period of offsetPeriodsForLocalDay(naiveStart, timeZone)) {
+    const overlapStart = Math.max(period.start, naiveStart - period.offset);
+    const overlapEnd = Math.min(period.end, naiveEnd - period.offset);
+    if (overlapStart < overlapEnd) {
+      first = Math.min(first, overlapStart);
+      endExclusive = Math.max(endExclusive, overlapEnd);
+    }
+  }
+
+  if (!Number.isFinite(first) || !Number.isFinite(endExclusive)) {
+    throw new RangeError(`Local date does not exist in ${timeZone}`);
+  }
+  return { start: new Date(first), end: new Date(endExclusive - 1_000) };
+}
+
 /** Set the default timezone once for the lifetime of this module instance. */
 export function initializeTimezone(config: TimezoneConfig): Readonly<TimezoneConfig> {
-  formatter(config.timeZone);
-  if (configuredTimeZone && configuredTimeZone !== config.timeZone) {
+  const canonicalTimeZone = formatter(config.timeZone).resolvedOptions().timeZone;
+  if (configuredTimeZone && configuredTimeZone !== canonicalTimeZone) {
     throw new Error(`Timezone is already initialized with ${configuredTimeZone}`);
   }
-  configuredTimeZone = config.timeZone;
+  configuredTimeZone = canonicalTimeZone;
   return Object.freeze({ timeZone: configuredTimeZone });
 }
 
@@ -172,12 +248,12 @@ export function localDateTimeToInstant(date: BusinessDate, time: string, timeZon
 
 /** Return the instant at the start of a timezone-local calendar day. */
 export function startOfDay(date: BusinessDate, timeZone?: TimeZone): Date {
-  return localDateTimeToInstant(date, '00:00:00', timeZone);
+  return localDayBoundaries(date, activeTimeZone(timeZone)).start;
 }
 
 /** Return the instant at the final whole second of a timezone-local calendar day. */
 export function endOfDay(date: BusinessDate, timeZone?: TimeZone): Date {
-  return localDateTimeToInstant(date, '23:59:59', timeZone);
+  return localDayBoundaries(date, activeTimeZone(timeZone)).end;
 }
 
 /** Add calendar days without assuming that every local day contains 24 hours. */

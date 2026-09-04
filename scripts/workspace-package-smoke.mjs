@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'workers-workspace-smoke-'));
 const commandEnvironment = {
   ...process.env,

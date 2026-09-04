@@ -46,6 +46,7 @@ describe('normalizeBusinessDate', () => {
     expect(normalizeBusinessDate(null)).toBeNull();
     expect(normalizeBusinessDate('')).toBeNull();
     expect(normalizeBusinessDate('not-a-date')).toBeNull();
+    expect(normalizeBusinessDate('2026-02-30')).toBeNull();
   });
 });
 
@@ -89,6 +90,11 @@ describe('businessDateTimeInstant / parseBusinessDateTime', () => {
     expect(parseBusinessDateTime(s).getTime()).toBe(
       businessDateTimeInstant(toBusinessDate(instant), '19:30:45').getTime(),
     );
+  });
+
+  it('不正な暦日をDate rolloverせず拒否する', () => {
+    expect(() => businessDateTimeInstant('2026-02-30', '09:00:00')).toThrow('Invalid BusinessDate');
+    expect(() => parseBusinessDateTime('2026-02-30 09:00:00')).toThrow('Invalid BusinessDate');
   });
 
   it('startOfBusinessDay / endOfBusinessDay', () => {

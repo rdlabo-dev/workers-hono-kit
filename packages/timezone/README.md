@@ -6,6 +6,12 @@ when converting between instants and local dates.
 
 > This package is under development and is not published to npm yet.
 
+After publication, install it as a direct dependency before using the canonical import path:
+
+```sh
+npm install @rdlabo/workers-timezone
+```
+
 ## Usage
 
 ```ts
@@ -27,7 +33,10 @@ accepts an explicit timezone override without changing the configured default. F
 with `@rdlabo/workers-hono-kit/business-time`, the uninitialized default is `Asia/Tokyo`.
 
 At a DST overlap, conversion selects the earlier occurrence. Local wall clocks skipped by a DST
-transition are rejected with `RangeError`.
+transition are rejected with `RangeError`. `startOfDay` and `endOfDay` are boundary operations: they
+return the first and final representable whole seconds of the local calendar day, including days
+whose midnight is skipped or whose final wall clock is repeated. A fully skipped calendar date is
+rejected with `RangeError`.
 
 `TIME_ZONES` is a typed constant containing common choices for editor autocomplete. Any IANA ID
 supported by the Workers `Intl` runtime can also be supplied as a string and is validated at runtime.
@@ -35,6 +44,10 @@ supported by the Workers `Intl` runtime can also be supplied as a string and is 
 The package also exports the existing `workers-hono-kit/business-time` function names as
 compatibility aliases, including `toBusinessDateTime`, `businessDateTimeInstant`, `today`,
 `normalizeBusinessDate`, `formatBusinessDateTime`, and `ageOnBusinessDate`.
+
+Compatibility covers API names and valid-value behavior. Invalid calendar values are now handled
+strictly: `normalizeBusinessDate` returns `null`, and date-time construction or parsing throws
+`RangeError` rather than accepting JavaScript `Date` rollover.
 
 ## Development
 

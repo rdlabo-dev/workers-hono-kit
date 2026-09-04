@@ -62,6 +62,18 @@ describe('local time to instant', () => {
     expect(addDays('2024-02-28', 1)).toBe('2024-02-29');
   });
 
+  it('returns the actual first and final instants when midnight or the final clock is shifted', () => {
+    const saoPauloStart = startOfDay('2018-11-04', 'America/Sao_Paulo');
+    expect(saoPauloStart.toISOString()).toBe('2018-11-04T03:00:00.000Z');
+    expect(toLocalDateTime(saoPauloStart, 'America/Sao_Paulo')).toBe('2018-11-04 01:00:00');
+    expect(toLocalDate(new Date(saoPauloStart.getTime() - 1_000), 'America/Sao_Paulo')).toBe('2018-11-03');
+
+    const santiagoEnd = endOfDay('2019-04-06', 'America/Santiago');
+    expect(santiagoEnd.toISOString()).toBe('2019-04-07T03:59:59.000Z');
+    expect(toLocalDateTime(santiagoEnd, 'America/Santiago')).toBe('2019-04-06 23:59:59');
+    expect(toLocalDate(new Date(santiagoEnd.getTime() + 1_000), 'America/Santiago')).toBe('2019-04-07');
+  });
+
   it('supports non-hour offsets, half-hour DST, +14, and skipped dates', () => {
     expect(toLocalDateTime(new Date('2026-01-01T00:00:00Z'), 'Asia/Kathmandu')).toBe('2026-01-01 05:45:00');
     expect(toLocalDateTime(new Date('2026-01-01T00:00:00Z'), 'Pacific/Kiritimati')).toBe('2026-01-01 14:00:00');
@@ -95,7 +107,7 @@ describe('workers-hono-kit compatibility', () => {
 
 describe('initializeTimezone', () => {
   it('configures the isolate once and permits only idempotent initialization', () => {
-    expect(initializeTimezone({ timeZone: TIME_ZONES.NEW_YORK })).toEqual({
+    expect(initializeTimezone({ timeZone: 'america/new_york' })).toEqual({
       timeZone: TIME_ZONES.NEW_YORK,
     });
     expect(toLocalDateTime(new Date('2026-07-01T13:00:00Z'))).toBe('2026-07-01 09:00:00');

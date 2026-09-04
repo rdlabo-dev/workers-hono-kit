@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [20, 22]
+        # The aggregate lint/test jobs below cover timezone on Node 22.
+        node: [20]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
