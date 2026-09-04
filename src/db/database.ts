@@ -117,6 +117,9 @@ export interface DisposableDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends Data
  * Use `query()` only for SELECTs that require read-after-write consistency or cannot use the
  * configured replica. Fatal connection errors recreate the primary connection and repeat the
  * SELECT at most once. Writes and transactions are never repeated for connection errors.
+ * Read-only transactions are serialized on a separately cached primary connection so their
+ * snapshot boundaries cannot mix with ordinary primary operations or with each other. Do not call
+ * `readTransaction()` recursively from its own callback.
  *
  * @typeParam TDrizzle - the consumer's Drizzle ORM type.
  * @typeParam TTx - the transaction-handle type, inferred from `TDrizzle` by default.
@@ -137,7 +140,8 @@ export interface HyperdriveDatabase<TDrizzle, TTx = TxOf<TDrizzle>> extends Disp
    * @remarks
    * The callback is repeated at most once on a fresh connection after a fatal connection error.
    * This is safe only because the transaction is declared read-only. Use {@link transaction} for
-   * writes; write transactions are never repeated after connection loss.
+   * writes; write transactions are never repeated after connection loss. Calls are serialized on
+   * one dedicated connection, so recursive `readTransaction()` calls are not supported.
    */
   readTransaction<T>(fn: (reader: ReadTransaction<TTx>) => Promise<T>): Promise<T>;
 }

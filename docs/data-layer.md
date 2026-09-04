@@ -27,6 +27,8 @@ const snapshot = await db.readTransaction(async ({ orm, query }) => ({
 
 MySQL enforces `READ ONLY` for every transaction attempt. Drizzle does not provide a distinct read-only transaction type, so applications can wrap `orm` in a SELECT-only facade when they also want compile-time enforcement.
 
+Do not call `readTransaction()` recursively from inside its callback. Calls share one serialized snapshot lane, so a nested call would wait for its own outer transaction to finish. Consumers that expose nested snapshot helpers should reuse the outer reader instead.
+
 Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connections. The default JavaScript date conversion timezone is `+09:00`; it does not change the MySQL session timezone.
 
 ## Writes and retries
