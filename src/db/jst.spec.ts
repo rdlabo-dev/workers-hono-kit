@@ -26,6 +26,10 @@ describe('toJstDate (DATE 列 toDriver)', () => {
     expect(toJstDate('2026-06-22T20:00:00.000Z')).toBe('2026-06-23');
   });
 
+  it('uses the database fixed +09:00 offset rather than historical Tokyo DST', () => {
+    expect(toJstDate('1950-07-01T14:30:00.000Z')).toBe('1950-07-01');
+  });
+
   it('remains pinned to JST after the application initializes another default timezone', () => {
     initializeTimezone({ timeZone: 'America/New_York' });
     expect(toJstDate('2026-07-01T02:00:00.000Z')).toBe('2026-07-01');

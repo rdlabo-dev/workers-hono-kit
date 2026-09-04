@@ -3,7 +3,7 @@
 `@rdlabo/workers-hono-kit` provides infrastructure-layer helpers for Hono on Cloudflare Workers. Domain logic, database schemas, and application-specific policy stay in the consuming application.
 
 ```sh
-npm install @rdlabo/workers-hono-kit @rdlabo/workers-timezone
+npm install @rdlabo/workers-hono-kit
 ```
 
 Install only the peer dependencies required by the features you use:
@@ -35,6 +35,13 @@ Stripe is a direct dependency of the kit. The package is compiled ESM with decla
 
 Subpath imports keep optional database and testing dependencies out of the root runtime surface.
 
+`@rdlabo/workers-timezone` is not published yet. After publication, install both packages when
+using the timezone API or the deprecated compatibility subpath:
+
+```sh
+npm install @rdlabo/workers-hono-kit @rdlabo/workers-timezone
+```
+
 Set a deployment-wide timezone once when the Worker module starts. Helpers then use it whenever
 their optional timezone argument is omitted:
 
@@ -48,11 +55,12 @@ Install `@rdlabo/workers-timezone` as a direct dependency before importing it. K
 in the application dependency graph also ensures that the canonical import and the deprecated
 `@rdlabo/workers-hono-kit/business-time` subpath share the same module-level configuration.
 
-The compatibility subpath preserves the existing API names and the default `Asia/Tokyo` behavior
-for valid values. It now validates calendar and wall-clock inputs strictly: impossible date-only
-values normalize to `null`, while invalid date-time construction and parsing throw `RangeError`
-instead of relying on JavaScript `Date` rollover. Treat this validation change as breaking when
-planning an upgrade.
+The compatibility subpath preserves the existing API names and keeps `Asia/Tokyo` as its default.
+Its results now follow IANA historical offsets instead of the legacy fixed `+09:00`, so historical
+dates can change when Tokyo's offset was not `+09:00`. It also validates calendar and wall-clock
+inputs strictly: impossible date-only values normalize to `null`, while invalid date-time
+construction and parsing throw `RangeError` instead of relying on JavaScript `Date` rollover. Treat
+both behavior changes as breaking when planning an upgrade.
 
 ## Documentation
 
@@ -81,7 +89,7 @@ revalidates `packages/timezone/package.json` as non-private immediately before p
 Until then, install both downloaded candidate tarballs together when testing the package boundary:
 
 ```sh
-npm install ./rdlabo-workers-timezone-0.1.0.tgz ./rdlabo-workers-hono-kit-<version>.tgz
+npm install ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
 ```
 
 ## Maintainers

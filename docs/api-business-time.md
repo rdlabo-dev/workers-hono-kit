@@ -35,10 +35,11 @@ IANA rules determine daylight-saving and historical offsets. A skipped local clo
 `toBusinessDateTime`, `businessDateTimeInstant`, `formatBusinessDateTime`, and
 `ageOnBusinessDate` remain available during migration.
 
-This is source compatibility for API names and valid values, not preservation of permissive invalid
-input handling. Impossible `YYYY-MM-DD` values now normalize to `null`; invalid date-time
-construction and parsing throw `RangeError` instead of using JavaScript `Date` rollover. Treat this
-validation change as breaking when planning the migration.
+This is source compatibility for API names, not full output compatibility. Results now follow IANA
+historical offsets instead of the legacy fixed `+09:00`, so historical dates can change when
+Tokyo's offset was not `+09:00`. Impossible `YYYY-MM-DD` values now normalize to `null`; invalid
+date-time construction and parsing throw `RangeError` instead of using JavaScript `Date` rollover.
+Treat both behavior changes as breaking when planning the migration.
 
 ```ts
 // Deprecated; migrate the import path when practical.

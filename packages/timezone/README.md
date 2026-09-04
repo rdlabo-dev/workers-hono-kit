@@ -45,9 +45,12 @@ The package also exports the existing `workers-hono-kit/business-time` function 
 compatibility aliases, including `toBusinessDateTime`, `businessDateTimeInstant`, `today`,
 `normalizeBusinessDate`, `formatBusinessDateTime`, and `ageOnBusinessDate`.
 
-Compatibility covers API names and valid-value behavior. Invalid calendar values are now handled
-strictly: `normalizeBusinessDate` returns `null`, and date-time construction or parsing throws
-`RangeError` rather than accepting JavaScript `Date` rollover.
+Compatibility covers API names and keeps `Asia/Tokyo` as the default. Results now follow IANA
+historical offsets instead of the legacy fixed `+09:00`, so historical dates can change when
+Tokyo's offset was not `+09:00`. Invalid calendar values are also handled strictly:
+`normalizeBusinessDate` returns `null`, and date-time construction or parsing throws `RangeError`
+rather than accepting JavaScript `Date` rollover. Treat both behavior changes as breaking during
+migration.
 
 ## Development
 

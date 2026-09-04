@@ -2,8 +2,8 @@
  * @deprecated Import from `@rdlabo/workers-timezone` instead.
  *
  * This compatibility subpath re-exports the canonical workspace implementation and shares its
- * module-level configuration. Valid values retain the legacy API behavior; invalid calendar and
- * wall-clock inputs now use the stricter validation documented in `docs/api-business-time.md`.
+ * module-level configuration. Historical offsets and invalid calendar or wall-clock inputs follow
+ * the migration behavior documented in `docs/api-business-time.md`.
  *
  * @packageDocumentation
  */

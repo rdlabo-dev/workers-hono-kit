@@ -7,11 +7,14 @@
  * `customType` params.
  */
 
-import { TIME_ZONES, normalizeBusinessDate } from '../business-time/index.js';
+import { normalizeBusinessDate } from '../business-time/index.js';
 import type { BusinessDate } from '../business-time/index.js';
 
 /** Default mysql2 connection `timezone` (for the existing JST DB deployment). */
 export const MYSQL_TIMEZONE = '+09:00';
+
+// IANA Etc/GMT signs are inverted: Etc/GMT-9 is the fixed UTC+09 offset used by mysql2 above.
+const MYSQL_FIXED_OFFSET_TIME_ZONE = 'Etc/GMT-9';
 
 /**
  * Normalize a client input to `YYYY-MM-DD` (a JST business calendar date) for a MySQL `DATE` column.
@@ -22,7 +25,7 @@ export const MYSQL_TIMEZONE = '+09:00';
  * @returns the business date as `YYYY-MM-DD`, or `null` when the input cannot be resolved.
  */
 export function toJstDate(value: string | null | undefined): BusinessDate | null {
-  return normalizeBusinessDate(value ?? null, TIME_ZONES.TOKYO);
+  return normalizeBusinessDate(value ?? null, MYSQL_FIXED_OFFSET_TIME_ZONE);
 }
 
 /**
