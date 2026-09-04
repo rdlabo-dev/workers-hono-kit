@@ -66,23 +66,27 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PR_NUMBER: ${{ steps.merge.outputs.pr-number }}
         run: |
-          BASE_VERSION=$(node -p "require('./package.json').version.split('-')[0]")
           if [ -n "$PR_NUMBER" ]; then
-            VERSION="${BASE_VERSION}-beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}"
+            SUFFIX="beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}"
           else
-            VERSION="${BASE_VERSION}-candidate.sha${HEAD_SHA:0:12}"
+            SUFFIX="candidate.sha${HEAD_SHA:0:12}"
           fi
-          npm version "$VERSION" --no-git-tag-version --ignore-scripts
+          node scripts/version-package-candidate.mjs "$SUFFIX"
+          npm install --package-lock-only --ignore-scripts
           echo "artifact=npm-candidate-${HEAD_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build package
         run: npm run build
+
+      - name: Test candidate dependency graph
+        run: npm run test:package
 
       - name: Pack candidate
         run: |
           mkdir -p "$RUNNER_TEMP/npm-candidate"
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/npm-candidate"
           npm pack --ignore-scripts --workspace @rdlabo/workers-timezone --pack-destination "$RUNNER_TEMP/npm-candidate"
+          npm pack --ignore-scripts --workspace @rdlabo/workers-mysql --pack-destination "$RUNNER_TEMP/npm-candidate"
 
       - name: Upload immutable package artifact
         uses: actions/upload-artifact@v7
@@ -97,5 +101,13 @@ jobs:
         with:
           name: ${{ steps.candidate.outputs.artifact }}-timezone
           path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-timezone-*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload MySQL workspace artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.candidate.outputs.artifact }}-mysql
+          path: ${{ runner.temp }}/npm-candidate/rdlabo-workers-mysql-*.tgz
           if-no-files-found: error
           retention-days: 7

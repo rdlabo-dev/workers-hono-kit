@@ -15,6 +15,26 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The aggregate lint/test jobs below cover MySQL on Node 22.
+        node: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check --workspace @rdlabo/workers-mysql
+      - run: npm run typecheck --workspace @rdlabo/workers-mysql
+      - run: npm run lint --workspace @rdlabo/workers-mysql
+      - run: npm test --workspace @rdlabo/workers-mysql
+      - run: npm run build --workspace @rdlabo/workers-mysql
+      - run: npm run test:package --workspace @rdlabo/workers-mysql
+
   timezone:
     runs-on: ubuntu-latest
     strategy:

@@ -3,11 +3,11 @@
 `@rdlabo/workers-hono-kit` provides infrastructure-layer helpers for Hono on Cloudflare Workers. Domain logic, database schemas, and application-specific policy stay in the consuming application.
 
 ```sh
-npm install @rdlabo/workers-hono-kit mysql2 ai-gateway-provider
+npm install @rdlabo/workers-hono-kit ai-gateway-provider
 ```
 
-The kit, `mysql2`, and `ai-gateway-provider` are installed as a set because the root entry point
-statically exports `createContainerRuntime` and `createAiGatewayProvider`.
+`ai-gateway-provider` remains a required peer because the root exports `createAiGatewayProvider`.
+MySQL infrastructure is an independent package and is not loaded by this entry point.
 
 Install only the peer dependencies required by the features you use:
 
@@ -15,8 +15,8 @@ Install only the peer dependencies required by the features you use:
 # Core HTTP, validation, Firebase, and AWS helpers
 npm install hono zod @hono/zod-validator jose aws4fetch
 
-# Data and testing entry points
-npm install drizzle-orm
+# MySQL, Hyperdrive, and Drizzle
+npm install @rdlabo/workers-mysql drizzle-orm
 
 # AI Gateway
 npm install ai
@@ -26,25 +26,50 @@ Stripe is a direct dependency of the kit. The package is compiled ESM with decla
 
 ## Entry points
 
-| Import                                   | Responsibility                                                                 |
-| ---------------------------------------- | ------------------------------------------------------------------------------ |
-| `@rdlabo/workers-hono-kit`               | HTTP, auth, MySQL container, Firebase, AWS, AI, Stripe, KV, queue primitives   |
-| `@rdlabo/workers-hono-kit/db`            | Hyperdrive, MySQL, Drizzle, migrations, JST columns                            |
-| `@rdlabo/workers-timezone`               | IANA-timezone-aware dates and date-times (Asia/Tokyo by default)               |
-| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone`               |
-| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts             |
-| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                                     |
-| `@rdlabo/workers-hono-kit/testing`       | Test databases, auth helpers, fakes, and Stripe fixtures                       |
+| Import                                   | Responsibility                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| `@rdlabo/workers-hono-kit`               | HTTP, auth, Firebase, AWS, AI, Stripe, KV, queue primitives        |
+| `@rdlabo/workers-mysql`                  | Workers-safe MySQL and Hyperdrive runtime                          |
+| `@rdlabo/workers-mysql/drizzle`          | Drizzle configuration and JST column helpers                       |
+| `@rdlabo/workers-mysql/migrations`       | Node.js migration and brownfield baseline helpers                  |
+| `@rdlabo/workers-mysql/testing`          | Local MySQL and Drizzle test infrastructure                        |
+| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for `@rdlabo/workers-mysql`                 |
+| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility re-export of the MySQL package            |
+| `@rdlabo/workers-timezone`               | IANA-timezone-aware dates and date-times (Asia/Tokyo by default)   |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export of `@rdlabo/workers-timezone`   |
+| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts |
+| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                         |
+| `@rdlabo/workers-hono-kit/testing`       | Test databases, auth helpers, fakes, and Stripe fixtures           |
 
-`mysql2` and `ai-gateway-provider` are required peers of the root package. The `/db` and `/testing`
-entry points additionally use the optional `drizzle-orm` peer. Business-time remains a separate
-optional package.
+`mysql2` is a direct dependency of `@rdlabo/workers-mysql`; consumers do not install it separately.
+`drizzle-orm` is an optional peer used only by the `/drizzle` and `/testing` entry points. The Hono
+kit treats both standalone workspace packages as optional peers for compatibility subpaths.
 
-`@rdlabo/workers-timezone` is not published yet. After publication, install both packages when
-using the timezone API or the deprecated compatibility subpath:
+The standalone MySQL package is still unpublished. Existing users of the current npm release keep
+using `@rdlabo/workers-hono-kit/db` with their existing `mysql2` dependency. To test this PR's
+candidate boundary, install the downloaded MySQL and kit tarballs together; after publication, use
+the canonical `@rdlabo/workers-mysql` imports shown above.
+
+### MySQL migration
+
+This boundary is a breaking change for the next `0.x` minor. Update imports before upgrading:
+
+| Current import                                          | Canonical import                                      |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                      |
+| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                               |
+| DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
+| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
+
+The `/db` and DB-related `/testing` exports remain as deprecated migration aids. The two root
+exports move rather than re-export so importing the kit root remains independent of MySQL types and
+runtime modules.
+
+`@rdlabo/workers-timezone` and `@rdlabo/workers-mysql` are not published yet. After publication,
+install the timezone package when using the timezone API or the deprecated compatibility subpath:
 
 ```sh
-npm install @rdlabo/workers-hono-kit mysql2 ai-gateway-provider @rdlabo/workers-timezone
+npm install @rdlabo/workers-hono-kit ai-gateway-provider @rdlabo/workers-timezone
 ```
 
 Set a deployment-wide timezone once when the Worker module starts. Helpers then use it whenever
@@ -81,20 +106,20 @@ both behavior changes as breaking when planning an upgrade.
 
 ## Prerelease channels
 
-While `@rdlabo/workers-timezone` is private and unpublished, npm publication of both workspace
-packages is disabled. Pull requests and merges still produce separate immutable candidate artifacts
-for `@rdlabo/workers-hono-kit` and `@rdlabo/workers-timezone`, but `/beta`, automatic beta, `next`,
-and stable publication are blocked.
+While either standalone workspace is private and unpublished, npm publication is disabled. Pull
+requests and merges still produce separate immutable candidate artifacts for
+`@rdlabo/workers-hono-kit`, `@rdlabo/workers-timezone`, and `@rdlabo/workers-mysql`, but `/beta`,
+automatic beta, `next`, and stable publication are blocked.
 
-Publication may be enabled only after the timezone package becomes public, versions and dependency
-ranges are synchronized, and release automation publishes timezone before hono-kit. Candidate
+Publication may be enabled only after both packages become public, versions and dependency ranges
+are synchronized, and release automation publishes dependencies before hono-kit. Candidate
 publication additionally requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true` and
-revalidates `packages/timezone/package.json` as non-private immediately before publishing.
+revalidates both workspace manifests as non-private immediately before publishing.
 
-Until then, install both downloaded candidate tarballs together when testing the package boundary:
+Until then, install all three downloaded candidate tarballs together when testing the package boundary:
 
 ```sh
-npm install mysql2 ai-gateway-provider ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
+npm install drizzle-orm ai-gateway-provider ./rdlabo-workers-mysql-*.tgz ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
 ```
 
 ## Maintainers

@@ -1,9 +1,11 @@
 import { createConnection } from 'mysql2/promise';
 import type { Connection } from 'mysql2/promise';
-import type { ExecutionContextLike } from '../http/execution-context.js';
 import { MYSQL_TIMEZONE } from './jst.js';
 
-export type { ExecutionContextLike } from '../http/execution-context.js';
+/** Minimal structural shape retained by the compatibility connection-lifecycle API. */
+export interface ExecutionContextLike {
+  waitUntil(promise: Promise<unknown>): void;
+}
 
 /**
  * Minimal structural shape of a Cloudflare Hyperdrive binding.
@@ -26,7 +28,7 @@ export interface HyperdriveLike {
 }
 
 /**
- * Build mysql2 `createConnection` options from a Hyperdrive binding, applying the kit's defaults.
+ * Build mysql2 `createConnection` options from a Hyperdrive binding, applying the package defaults.
  *
  * @remarks
  * Three defaults are applied and can each be overridden via `extra`:

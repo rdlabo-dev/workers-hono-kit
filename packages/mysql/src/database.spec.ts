@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createMysqlDatabase } from './database.js';
 import type { QueryRunner } from './database.js';
 
-// kit は drizzle に依存しないため、orm は最小のフェイク（transaction を持つ）で検証する。
+// core は drizzle に依存しないため、orm は最小のフェイク（transaction を持つ）で検証する。
 interface FakeOrm {
   transaction<T>(cb: (tx: 'tx') => Promise<T>): Promise<T>;
   tag: string;

@@ -8,6 +8,7 @@ export default createEslintConfig({
     'packages/*/dist/**',
     'scripts/**',
     'packages/*/scripts/**',
+    'packages/*/bin/**',
     '**/eslint.config.mjs',
     'eslint.shared.mjs',
     'vitest.config.ts',

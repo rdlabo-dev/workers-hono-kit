@@ -1,0 +1,82 @@
+{
+  "name": "@rdlabo/workers-mysql",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MySQL and Hyperdrive utilities for Cloudflare Workers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdlabo-dev/workers-hono-kit.git",
+    "directory": "packages/mysql"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "bin": {
+    "workers-mysql-db-baseline": "./bin/db-baseline.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle.d.ts",
+      "import": "./dist/drizzle.js",
+      "default": "./dist/drizzle.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js",
+      "default": "./dist/migrations.js"
+    },
+    "./baseline-cli": {
+      "types": "./dist/baseline-cli.d.ts",
+      "import": "./dist/baseline-cli.js",
+      "default": "./dist/baseline-cli.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js",
+      "default": "./dist/testing/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:package": "node scripts/package-smoke.mjs",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.14.0"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.45.2"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@hono/eslint-config": "^2.1.0",
+    "@rdlabo/workers-timezone": "^0.1.0",
+    "drizzle-orm": "^0.45.2",
+    "eslint": "^9.39.4",
+    "prettier": "^3.8.4",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^2.1.0"
+  }
+}

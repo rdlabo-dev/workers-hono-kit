@@ -1,17 +1,25 @@
-Import database helpers from `@rdlabo/workers-hono-kit/db`. This entry point requires `drizzle-orm` and `mysql2`.
+Import database helpers from `@rdlabo/workers-mysql`. The package installs `mysql2` directly. Add
+`drizzle-orm` only when using the `/drizzle` or `/testing` entry point. The old
+`@rdlabo/workers-hono-kit/db` path is a deprecated compatibility re-export.
+
+`@rdlabo/workers-mysql` is not published yet. The currently published Hono kit continues to use
+`@rdlabo/workers-hono-kit/db` plus a direct `mysql2` dependency. For this PR's candidate, install
+both downloaded tarballs and use the canonical imports below. After publication, replace the
+tarball with `npm install @rdlabo/workers-mysql drizzle-orm`.
 
 ## Hyperdrive database
 
 `createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. `read()` uses the replica query runner; `query()` provides an explicit raw primary SELECT for read-after-write consistency; writes and transactions use the primary Drizzle instance. `readTransaction()` runs Drizzle and raw reads against one primary repeatable-read snapshot. Read transactions are serialized on one separately cached connection so their boundaries cannot mix with each other or with ordinary primary operations. After a fatal mysql2 connection error, a single read or the complete read-only transaction opens a fresh connection and repeats at most once. Writes and write transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
 
 ```ts
-import { createHyperdriveDatabase } from '@rdlabo/workers-hono-kit/db';
+import { createHyperdriveDatabase } from '@rdlabo/workers-mysql';
+import { DRIZZLE_ORM_OPTIONS } from '@rdlabo/workers-mysql/drizzle';
 import { drizzle } from 'drizzle-orm/mysql2';
 
 const db = createHyperdriveDatabase({
   primaryHyperdrive: env.DB_PRIMARY,
   replicaHyperdrive: env.DB_REPLICA,
-  createOrm: (primary) => drizzle(primary, { schema }),
+  createOrm: (primary) => drizzle(primary, { schema, ...DRIZZLE_ORM_OPTIONS }),
 });
 
 const rows = await db.read<Item>('SELECT * FROM items WHERE id = ?', [id]);
@@ -30,6 +38,12 @@ MySQL enforces `READ ONLY` for every transaction attempt. Drizzle does not provi
 Do not call `readTransaction()` recursively from inside its callback. Calls share one serialized snapshot lane, so a nested call would wait for its own outer transaction to finish. Consumers that expose nested snapshot helpers should reuse the outer reader instead.
 
 Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connections. The default JavaScript date conversion timezone is `+09:00`; it does not change the MySQL session timezone.
+
+Hono applications that want the standard request container use the thin adapter separately:
+
+```ts
+import { createContainerRuntime } from '@rdlabo/workers-hono-kit/mysql';
+```
 
 ## Writes and retries
 

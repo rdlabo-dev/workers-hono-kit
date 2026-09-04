@@ -109,24 +109,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish packages
+      - name: Guard unpublished workspace release
         run: |
           if node -e "process.exit(require('./packages/timezone/package.json').private ? 0 : 1)"; then
             echo "::error::Release is disabled while @rdlabo/workers-timezone is private and unpublished"
             exit 1
           fi
-          VERSION="${{ steps.tag_version.outputs.version }}"
-          IS_STABLE=$(echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' && echo true || echo false)
-
-          echo "Publishing... $IS_STABLE"
-          if [ "$IS_STABLE" = "true" ]; then
-            npm publish --provenance --access public --tag latest
-          elif echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$'; then
-            npm publish --provenance --access public --tag next
-          else
-            echo "::error::Refusing to publish an invalid release version: $VERSION"
+          if node -e "process.exit(require('./packages/mysql/package.json').private ? 0 : 1)"; then
+            echo "::error::Release is disabled while @rdlabo/workers-mysql is private and unpublished"
             exit 1
           fi
+          echo "::error::Release remains disabled until standalone workspaces are published before @rdlabo/workers-hono-kit"
+          exit 1
 
   authorize-candidate:
     if: >-
@@ -385,7 +379,7 @@ jobs:
 
   publish-candidate:
     needs: authorize-candidate
-    # Publishing remains explicitly disabled while the timezone workspace is private/unpublished.
+    # Publishing remains explicitly disabled while either standalone workspace is private/unpublished.
     # Candidate tarballs are still built and retained for review.
     if: >-
       needs.authorize-candidate.outputs.allowed == 'true' &&
@@ -515,7 +509,24 @@ jobs:
             const timezonePackage = JSON.parse(Buffer.from(timezoneData.content, 'base64').toString('utf8'));
             if (timezonePackage.private !== false) {
               core.setFailed('Candidate publishing is disabled while @rdlabo/workers-timezone is private.');
+              return;
             }
+            const { data: mysqlData } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'packages/mysql/package.json',
+              ref: defaultBranch,
+            });
+            if (Array.isArray(mysqlData) || mysqlData.type !== 'file' || !mysqlData.content) {
+              core.setFailed('Trusted MySQL package.json could not be read.');
+              return;
+            }
+            const mysqlPackage = JSON.parse(Buffer.from(mysqlData.content, 'base64').toString('utf8'));
+            if (mysqlPackage.private !== false) {
+              core.setFailed('Candidate publishing is disabled while @rdlabo/workers-mysql is private.');
+              return;
+            }
+            core.setFailed('Candidate publishing remains disabled until standalone workspace artifacts are published before @rdlabo/workers-hono-kit.');
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

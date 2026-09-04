@@ -11,7 +11,7 @@ export type { TestDb, CreateTestDbOptions, TestDbConnection } from './db.js';
 
 export { FakeFirebaseVerifier, createPoolDatabase, createNoopDatabase } from './fakes.js';
 export type { CreatePoolDatabaseOptions } from './fakes.js';
-export type { Database, DisposableDatabase, QueryRunner, TxOf } from '../db/database.js';
+export type { Database, DisposableDatabase, QueryRunner, TxOf } from '@rdlabo/workers-mysql';
 
 // Authentication test helpers (route-spec header builders and user provisioning).
 export { authHeaders, registerFirebaseToken, provisionUser } from './auth.js';

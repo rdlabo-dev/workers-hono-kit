@@ -2,7 +2,7 @@
  * JST wire conversion and DATE-column normalization for MySQL / Drizzle.
  *
  * @remarks
- * This module owns the MySQL fixed `+09:00` contract independently of the optional business-time
+ * This module owns the MySQL fixed `+09:00` contract independently of any business-time
  * package, plus the DATE column's `toDriver` and the column `customType` params.
  */
 

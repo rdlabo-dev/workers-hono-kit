@@ -1,6 +1,8 @@
 # API: `@rdlabo/workers-hono-kit/testing`
 
-Requires the `drizzle-orm` and `mysql2` peers. Consolidates duplicated test boilerplate.
+The DB helpers are deprecated compatibility exports from `@rdlabo/workers-mysql/testing`. Install
+`@rdlabo/workers-mysql` and the optional `drizzle-orm` peer for them; `mysql2` is installed by the
+MySQL package. Non-DB Hono, Firebase, Stripe, KV, and Queue test helpers remain owned here.
 
 | Export | Description |
 | --- | --- |
