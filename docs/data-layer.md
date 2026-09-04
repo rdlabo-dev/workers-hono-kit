@@ -2,10 +2,37 @@ Import database helpers from `@rdlabo/workers-mysql`. The package installs `mysq
 `drizzle-orm` only when using the `/drizzle` or `/testing` entry point. The old
 `@rdlabo/workers-hono-kit/db` path is a deprecated compatibility re-export.
 
+Workers using `mysql2` must enable its required Node.js networking APIs:
+
+```toml
+# wrangler.toml
+compatibility_flags = ["nodejs_compat"]
+```
+
 `@rdlabo/workers-mysql` is not published yet. The currently published Hono kit continues to use
-`@rdlabo/workers-hono-kit/db` plus a direct `mysql2` dependency. For this PR's candidate, install
-both downloaded tarballs and use the canonical imports below. After publication, replace the
-tarball with `npm install @rdlabo/workers-mysql drizzle-orm`.
+`@rdlabo/workers-hono-kit/db` plus direct `mysql2` and `drizzle-orm` dependencies:
+
+```sh
+npm install @rdlabo/workers-hono-kit mysql2 drizzle-orm
+```
+
+For this PR's candidate, install the downloaded MySQL and Hono kit tarballs as described in
+[Development](./development.md), then use the canonical imports below. After publication, replace the tarball with
+`npm install @rdlabo/workers-mysql drizzle-orm`.
+
+## Migrating from workers-hono-kit
+
+The package boundary is a breaking change for the next `0.x` minor. Update these imports before
+upgrading:
+
+| Current import                                          | Replacement                                           |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                      |
+| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                               |
+| DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
+| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
+
+The old `/db` and DB-related `/testing` exports remain temporarily as deprecated migration aids.
 
 ## Hyperdrive database
 
@@ -58,8 +85,8 @@ Use `jstTimestamp`, `jstDatetime`, and `jstDate` for shared date behavior. Pair 
 Generic business-time conversion is separate from the DB's fixed `+09:00` wire contract.
 `@rdlabo/workers-timezone` is still unpublished; the currently published kit retains its existing
 `/business-time` API. When the timezone package is published, install it directly and migrate to its
-canonical entry point. To exercise the workspace candidate before then, install both tarballs as
-described in the repository README.
+canonical entry point. Candidate artifacts and installation are described in
+[Development](./development.md).
 
 ```sh
 npm install @rdlabo/workers-timezone
