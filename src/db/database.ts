@@ -256,10 +256,15 @@ export function createHyperdriveDatabase<TDrizzle>(
   const { primaryHyperdrive, replicaHyperdrive, createOrm, connectionOptions } = options;
   let primaryConn: Promise<Connection> | undefined;
   let replicaConn: Promise<Connection> | undefined;
+  let readTransactionConn: Promise<Connection> | undefined;
   let orm: TDrizzle | undefined;
+  let readTransactionOrm: TDrizzle | undefined;
+  let readTransactionTail: Promise<void> | undefined;
 
   const primary = (): Promise<Connection> => (primaryConn ??= connect(primaryHyperdrive, connectionOptions));
   const replica = (): Promise<Connection> => (replicaConn ??= connect(replicaHyperdrive, connectionOptions));
+  const readTransactionConnection = (): Promise<Connection> =>
+    (readTransactionConn ??= connect(primaryHyperdrive, connectionOptions));
   const ormFor = async (): Promise<TDrizzle> => (orm ??= createOrm(await primary()));
   const readFrom = <T>(connection: Promise<Connection>, sql: string, params: unknown[]): Promise<T[]> =>
     retryWhenDeadlock(async () => {
@@ -292,12 +297,26 @@ export function createHyperdriveDatabase<TDrizzle>(
       orm = undefined;
     }
   };
+  const resetReadTransaction = (failedConnection: Promise<Connection>): void => {
+    if (readTransactionConn === failedConnection) {
+      readTransactionConn = undefined;
+      readTransactionOrm = undefined;
+    }
+  };
+  const withReadTransactionLock = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = readTransactionTail ? readTransactionTail.then(fn, fn) : fn();
+    readTransactionTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  };
   const runReadTransaction = async <T>(
     connection: Promise<Connection>,
     fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>,
   ): Promise<T> => {
     const conn = await connection;
-    const dz = createOrm(conn) as DrizzleLike<TxOf<TDrizzle>>;
+    const dz = (readTransactionOrm ??= createOrm(conn)) as DrizzleLike<TxOf<TDrizzle>>;
     return retryWhenDeadlock(async () => {
       await conn.query('SET TRANSACTION READ ONLY');
       return dz.transaction(
@@ -331,18 +350,21 @@ export function createHyperdriveDatabase<TDrizzle>(
       return readWithRecovery(primary, resetPrimary, sql, params) as Promise<T>;
     },
     async readTransaction<T>(fn: (reader: ReadTransaction<TxOf<TDrizzle>>) => Promise<T>): Promise<T> {
-      const connection = connect(primaryHyperdrive, connectionOptions);
-      const outcome = await runReadTransaction(connection, fn).then(
-        (value) => ({ ok: true, value }) as const,
-        (error: unknown) => ({ ok: false, error }) as const,
-      );
-      if (outcome.ok) {
-        return outcome.value;
-      }
-      if (!isFatalConnectionError(outcome.error)) {
-        throw outcome.error;
-      }
-      return runReadTransaction(connect(primaryHyperdrive, connectionOptions), fn);
+      return withReadTransactionLock(async () => {
+        const connection = readTransactionConnection();
+        const outcome = await runReadTransaction(connection, fn).then(
+          (value) => ({ ok: true, value }) as const,
+          (error: unknown) => ({ ok: false, error }) as const,
+        );
+        if (outcome.ok) {
+          return outcome.value;
+        }
+        if (!isFatalConnectionError(outcome.error)) {
+          throw outcome.error;
+        }
+        resetReadTransaction(connection);
+        return runReadTransaction(readTransactionConnection(), fn);
+      });
     },
     async write<T>(fn: (dz: TDrizzle) => Promise<T>): Promise<T> {
       const dz = await ormFor();

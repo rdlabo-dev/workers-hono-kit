@@ -221,6 +221,43 @@ describe('createHyperdriveDatabase lifecycle', () => {
     expect(createOrm).toHaveBeenNthCalledWith(2, writeConnection);
   });
 
+  it('serializes read transactions on one cached snapshot connection', async () => {
+    let releaseFirst: (() => void) | undefined;
+    const firstBlocked = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let firstStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      firstStarted = resolve;
+    });
+    const connection = { query: vi.fn().mockResolvedValue([[], []]) };
+    mocks.createConnection.mockResolvedValue(connection);
+    const transaction = vi.fn((fn: (tx: string) => Promise<unknown>) => fn('tx'));
+    const createOrm = vi.fn(() => ({ transaction }));
+    const db = createHyperdriveDatabase({
+      primaryHyperdrive: hyperdrive,
+      replicaHyperdrive: hyperdrive,
+      createOrm,
+    });
+
+    const first = db.readTransaction(async () => {
+      firstStarted?.();
+      await firstBlocked;
+      return 'first';
+    });
+    await started;
+    const secondOperation = vi.fn(async () => 'second');
+    const second = db.readTransaction(secondOperation);
+
+    expect(secondOperation).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledOnce();
+    releaseFirst?.();
+    await expect(Promise.all([first, second])).resolves.toEqual(['first', 'second']);
+    expect(mocks.createConnection).toHaveBeenCalledOnce();
+    expect(createOrm).toHaveBeenCalledOnce();
+    expect(transaction).toHaveBeenCalledTimes(2);
+  });
+
   it('sets READ ONLY before every deadlock retry attempt', async () => {
     const deadlock = Object.assign(new Error('deadlock'), { code: 'ER_LOCK_DEADLOCK' });
     const query = vi.fn().mockResolvedValue([[], []]);
