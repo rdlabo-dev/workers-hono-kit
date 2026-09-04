@@ -33,6 +33,8 @@ upgrading:
 | DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
 
 The old `/db` and DB-related `/testing` exports remain temporarily as deprecated migration aids.
+Because `/testing` statically re-exports DB helpers, all kit `/testing` consumers must install the
+MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as Firebase or KV fakes.
 
 ## Hyperdrive database
 

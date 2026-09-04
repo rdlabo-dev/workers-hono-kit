@@ -46,6 +46,12 @@ The root entry point does not load MySQL, Drizzle, or Node-only migration module
 install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
 adapter.
 
+In the workspace candidate and upcoming release, `/testing` retains static DB compatibility exports. Every `/testing` consumer,
+including applications using only Firebase or KV fakes, must install `@rdlabo/workers-mysql` and
+`drizzle-orm`. Use matching candidate tarballs while the standalone package is unpublished.
+The current npm release instead uses `mysql2` and `drizzle-orm` directly and does not require
+`@rdlabo/workers-mysql`.
+
 The next `0.x` minor moves the root MySQL exports to the standalone package and `/mysql` adapter.
 Existing users should follow the [MySQL migration guide](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
 before upgrading.

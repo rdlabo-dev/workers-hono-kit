@@ -57,6 +57,10 @@ const { HttpStatus } = kit;
 if (HttpStatus.OK !== 200) process.exit(1);
 if ("createContainerRuntime" in kit) process.exit(1);
 if ("retryWhenDeadlock" in kit) process.exit(1);
+// The legacy testing barrel intentionally requires the optional MySQL package.
+const { rejects } = await import("node:assert/strict");
+await rejects(import("@rdlabo/workers-hono-kit/testing"), (error) =>
+  error.code === "ERR_MODULE_NOT_FOUND" && error.message.includes("@rdlabo/workers-mysql"));
 `,
   );
   writeFileSync(
@@ -117,7 +121,7 @@ void legacy;
   const mysqlCoreConsumer = join(temporaryDirectory, 'mysql-core-consumer');
   mkdirSync(mysqlCoreConsumer);
   writeFileSync(join(mysqlCoreConsumer, 'package.json'), '{"private":true,"type":"module"}\n');
-  execFileSync('npm', ['install', '--ignore-scripts', mysqlTarball], {
+  execFileSync('npm', ['install', '--ignore-scripts', mysqlTarball, '@types/node@20.19.43'], {
     cwd: mysqlCoreConsumer,
     stdio: 'inherit',
     env: commandEnvironment,
@@ -133,6 +137,18 @@ if (toJstDate("1950-07-01T14:30:00Z") !== "1950-07-01") process.exit(1);
 `,
   );
   execFileSync('node', ['smoke.mjs'], { cwd: mysqlCoreConsumer, stdio: 'inherit' });
+  writeFileSync(
+    join(mysqlCoreConsumer, 'smoke.ts'),
+    'import { type Database, MYSQL_TIMEZONE } from "@rdlabo/workers-mysql";\ndeclare const db: Database<unknown>;\nvoid db; void MYSQL_TIMEZONE;\n',
+  );
+  writeFileSync(
+    join(mysqlCoreConsumer, 'tsconfig.json'),
+    '{"compilerOptions":{"strict":true,"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","noEmit":true,"skipLibCheck":false},"include":["smoke.ts"]}\n',
+  );
+  execFileSync(join(root, 'node_modules', '.bin', 'tsc'), ['-p', 'tsconfig.json'], {
+    cwd: mysqlCoreConsumer,
+    stdio: 'inherit',
+  });
 
   const databaseConsumer = join(temporaryDirectory, 'database-consumer');
   mkdirSync(databaseConsumer);
@@ -155,6 +171,8 @@ if (toJstDate("1950-07-01T14:30:00Z") !== "1950-07-01") process.exit(1);
 import { workersDrizzleConfig } from "@rdlabo/workers-mysql/drizzle";
 import { MYSQL_TIMEZONE as legacyTimezone, toJstDate as legacyToJstDate } from "@rdlabo/workers-hono-kit/db";
 import { createContainerRuntime } from "@rdlabo/workers-hono-kit/mysql";
+import { FakeFirebaseVerifier, fakeKv } from "@rdlabo/workers-hono-kit/testing";
+if (typeof FakeFirebaseVerifier !== "function" || typeof fakeKv !== "function") process.exit(1);
 if (MYSQL_TIMEZONE !== "+09:00") process.exit(1);
 if (legacyTimezone !== MYSQL_TIMEZONE) process.exit(1);
 if (legacyToJstDate !== toJstDate) process.exit(1);

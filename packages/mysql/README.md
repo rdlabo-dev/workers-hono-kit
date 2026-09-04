@@ -49,6 +49,19 @@ npm install drizzle-orm
 
 Keeping Drizzle as a peer gives the application and its schemas one type identity.
 
+The public connection types use Node.js declarations. `@types/node@>=20.19.43` is a required peer
+(also when deploying to Workers). TypeScript applications should add it directly so its global
+declarations are visible with strict package layouts, including pnpm:
+
+```sh
+npm install -D @types/node@20
+# pnpm users:
+pnpm add -D @types/node@20
+```
+
+Use the matching supported major for your tooling. Automatic peer installation alone may not expose
+these global declarations to the application's TypeScript compiler under pnpm.
+
 ## Entry points
 
 | Import                             | Responsibility                                                                  |
