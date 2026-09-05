@@ -47,6 +47,7 @@
     "dist",
     "scripts",
     "!scripts/publish-packages*.mjs",
+    "!scripts/sync-release-versions*.mjs",
     "docs",
     "!src/**/*.spec.ts"
   ],
@@ -103,10 +104,11 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:package": "node scripts/workspace-package-smoke.mjs",
-    "test:release": "node --test scripts/publish-packages.test.mjs",
+    "test:release": "node --test scripts/publish-packages.test.mjs scripts/sync-release-versions.test.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
-    "release": "np --no-tests --no-publish"
+    "release": "np --no-tests --no-publish",
+    "version": "node scripts/sync-release-versions.mjs"
   },
   "dependencies": {
     "stripe": "^20.4.1"

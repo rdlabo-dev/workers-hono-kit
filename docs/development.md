@@ -16,8 +16,8 @@ The initial releases of `@rdlabo/workers-timezone@0.1.0` and `@rdlabo/workers-my
 complete. Both packages also have verified GitHub Actions Trusted Publisher connections for
 `rdlabo-dev/workers-hono-kit` / `release.yml`, with direct `npm publish` allowed and no environment
 restriction. No further bootstrap publication or Trusted Publisher creation is needed for them.
-The existing Hono kit does not need another bootstrap publish;
-`0.12.0` is released through the normal tag workflow. Pull requests and merges build immutable
+The existing Hono kit does not need another bootstrap publish.
+Subsequent releases use the synchronized version flow below. Pull requests and merges build immutable
 candidate tarballs for all three packages:
 
 - `rdlabo-workers-hono-kit-*.tgz`
@@ -69,7 +69,7 @@ npm view @rdlabo/workers-mysql@0.1.0 version --registry https://registry.npmjs.o
 
 If either lookup fails, resolve registry visibility before enabling CI. Keep the published workspace
 contents unchanged: the tag workflow compares archive integrity and skips identical `0.1.0` versions
-before publishing the kit. Changes to any packaged workspace file require a new workspace version.
+when retrying a release. Changes to packaged contents require a new synchronized release version.
 
 ## Trusted Publishing and CI enablement
 
@@ -105,16 +105,33 @@ by merging this PR.
 Only after package verification, all three Trusted Publishers, and these repository protections are
 in place, enable GitHub repository Actions variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`.
 CI uses OIDC and generates provenance; no npm token secret is needed.
-Enabling the variable does not itself start a release. After merging the reviewed changes, a
-`v0.12.0` tag triggers the kit release; future eligible merge/PR candidate events can publish betas.
+Enabling the variable does not itself start a release. After merging the reviewed changes,
+`npm run release` creates the next release tag; future eligible merge/PR candidate events can publish betas.
 
 ## Subsequent releases
 
+From a clean, up-to-date `main` checkout with dependencies installed, run:
+
+```sh
+npm run release
+```
+
+Choose the next version in `np`. Its npm `version` hook synchronizes the kit, timezone, and MySQL
+versions, internal dependency ranges, and lockfile **before** npm creates the release commit/tag.
+For example, choosing `0.12.1` advances all three packages to `0.12.1`, including the workspaces
+previously published at `0.1.0`. No separate workspace bump is required. The same applies to RCs.
+The tag workflow verifies synchronization, tests the packages, and publishes all three in dependency
+order. Unlike the Stripe repository's CI-side version update, no additional version commit is needed
+after tagging: the release tag already contains the complete version set.
+
+CI publishing still requires the one-time setup and `WORKSPACE_NPM_PUBLISH_ENABLED=true` above.
+An unset/false variable skips publishing even when a release tag is pushed. Do not use `--ignore-scripts`
+when creating release versions: it bypasses synchronization and the tag workflow will reject the set.
+
 - A root `v<version>` tag must match the checked-in root package version. Stable versions publish
-  with `latest`; prerelease versions publish with `next`. Each workspace uses its own version to
-  select `latest` or `next`, independently of the root version.
-- Increase each changed workspace's version and update the kit's peer range before a stable release.
-  Unchanged workspace archives may be skipped only on an exact integrity match.
+  all three packages with `latest`; prerelease versions publish all three with `next`.
+- All three versions must match for tag releases. Retries skip already-published archives only on
+  an exact integrity match; do not change an archive under an existing version.
 - `/beta` on a ready PR requires an owner/maintainer and successful Validation + Package Candidate
   runs. A PR changing release workflows or publisher/versioning scripts cannot publish a beta until
   those changes are reviewed and merged. Automatic merge beta has the same restriction.
