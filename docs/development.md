@@ -12,8 +12,11 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 
 ## Candidate artifacts and publication
 
-The owner has completed the initial local publication of `@rdlabo/workers-timezone@0.1.0` and
-`@rdlabo/workers-mysql@0.1.0`. The existing Hono kit does not need another bootstrap publish;
+The initial releases of `@rdlabo/workers-timezone@0.1.0` and `@rdlabo/workers-mysql@0.1.0` are
+complete. Both packages also have verified GitHub Actions Trusted Publisher connections for
+`rdlabo-dev/workers-hono-kit` / `release.yml`, with direct `npm publish` allowed and no environment
+restriction. No further bootstrap publication or Trusted Publisher creation is needed for them.
+The existing Hono kit does not need another bootstrap publish;
 `0.12.0` is released through the normal tag workflow. Pull requests and merges build immutable
 candidate tarballs for all three packages:
 
@@ -28,14 +31,14 @@ npm install drizzle-orm ai-gateway-provider ./rdlabo-workers-mysql-*.tgz ./rdlab
 ```
 
 All CI publishing requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`. Keep it
-unset or false until the two workspace publications are visible on npm and the Trusted Publisher
-and repository protection settings below are complete. This is an ongoing CI publication switch,
+unset or false until the kit's existing Trusted Publisher and the repository protection settings
+below are verified. This is an ongoing CI publication switch,
 not a requirement to publish every package locally.
 The publisher validates all three archives before any write, then publishes timezone, MySQL, and
 the kit in that order. A retry skips a version only when the registry's SHA-512 integrity matches
 the local tarball; different content under an existing version fails and requires a version bump.
 
-## Bootstrap complete: verify before enabling CI
+## Release bundle verification
 
 Only the two new packages required an initial owner publish. Do not repeat their `0.1.0` publishes
 or publish Hono kit `0.12.0` locally just to enable CI. The kit's minor bump covers breaking import
@@ -57,7 +60,7 @@ node scripts/publish-packages.mjs --directory "$RELEASE_DIR" --manifests . --tag
 ```
 
 The last command only validates and prints the plan: it does not publish or contact npm.
-Confirm that the two bootstrap versions are visible on the public registry:
+The published workspace versions can be checked on the public registry:
 
 ```sh
 npm view @rdlabo/workers-timezone@0.1.0 version --registry https://registry.npmjs.org/
@@ -68,11 +71,10 @@ If either lookup fails, resolve registry visibility before enabling CI. Keep the
 contents unchanged: the tag workflow compares archive integrity and skips identical `0.1.0` versions
 before publishing the kit. Changes to any packaged workspace file require a new workspace version.
 
-## Trusted Publishing setup after the first publish
+## Trusted Publishing and CI enablement
 
-For **each of the three npm packages**, open npmjs.com → package → Settings → Trusted publishing
-and add or verify GitHub Actions with these exact values. Retain the kit's existing configuration
-if it already matches:
+The two new packages already have the following saved configuration. Do not create duplicate
+connections. Verify the existing Hono kit connection against these values before enabling CI:
 
 | Field                    | Value                                                        |
 | ------------------------ | ------------------------------------------------------------ |
@@ -82,7 +84,8 @@ if it already matches:
 | Environment              | Leave empty (the workflow does not use a GitHub environment) |
 | Allowed action, if shown | Direct `npm publish`                                         |
 
-These npm-side settings can only be applied after the package exists; they are not created by a PR.
+The workspace connections were configured on npm after the owner published the packages; they
+are external settings, not created by merging this PR.
 See [npm's Trusted Publishing guide](https://docs.npmjs.com/trusted-publishers/).
 Before enabling CI, test the two registry packages together with the locally packed, not-yet-published
 kit in a fresh consumer directory (using `RELEASE_DIR` from above):
