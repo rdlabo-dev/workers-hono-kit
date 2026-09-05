@@ -1,11 +1,14 @@
 {
   "name": "@rdlabo/workers-hono-kit",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "private": false,
   "publishConfig": {
     "access": "public"
   },
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "description": "Infrastructure toolkit for building APIs on Hono + Cloudflare Workers: Firebase ID-token verification (jose), AWS Secrets Manager (aws4fetch), ETag/validation/zod-coerce middleware, deadlock retry, and shared HTTP helpers.",
   "author": "Masahiko Sakakibara<sakakibara@rdlabo.jp>",
   "license": "MIT",
@@ -43,15 +46,17 @@
   "files": [
     "dist",
     "scripts",
+    "!scripts/publish-packages*.mjs",
+    "!scripts/sync-release-versions*.mjs",
     "docs",
     "!src/**/*.spec.ts"
   ],
   "bin": {
-    "workers-hono-kit-sync-dev-aws": "./scripts/sync-dev-aws.mjs",
-    "workers-hono-kit-check-subrequest-fanout": "./scripts/check-subrequest-fanout.mjs",
-    "workers-hono-kit-db-baseline": "./scripts/db-baseline.mjs",
-    "workers-hono-kit-check-realtime-bundle": "./scripts/check-realtime-bundle.mjs",
-    "workers-hono-kit-query-realtime-do-metrics": "./scripts/query-realtime-do-metrics.mjs"
+    "workers-hono-kit-sync-dev-aws": "scripts/sync-dev-aws.mjs",
+    "workers-hono-kit-check-subrequest-fanout": "scripts/check-subrequest-fanout.mjs",
+    "workers-hono-kit-db-baseline": "scripts/db-baseline.mjs",
+    "workers-hono-kit-check-realtime-bundle": "scripts/check-realtime-bundle.mjs",
+    "workers-hono-kit-query-realtime-do-metrics": "scripts/query-realtime-do-metrics.mjs"
   },
   "exports": {
     ".": {
@@ -63,6 +68,11 @@
       "types": "./dist/db/index.d.ts",
       "import": "./dist/db/index.js",
       "default": "./dist/db/index.js"
+    },
+    "./mysql": {
+      "types": "./dist/mysql/index.d.ts",
+      "import": "./dist/mysql/index.js",
+      "default": "./dist/mysql/index.js"
     },
     "./business-time": {
       "types": "./dist/business-time/index.d.ts",
@@ -86,42 +96,46 @@
     }
   },
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "build": "npm run build --workspace @rdlabo/workers-timezone && npm run build --workspace @rdlabo/workers-mysql && node scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
     "prepare": "npm run build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run typecheck --workspace @rdlabo/workers-timezone && npm run typecheck --workspace @rdlabo/workers-mysql && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint \"src/**/*.ts\"",
-    "lint:fix": "eslint \"src/**/*.ts\" --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "release": "np --no-tests --no-publish"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test:package": "node scripts/workspace-package-smoke.mjs",
+    "test:release": "node --test scripts/publish-packages.test.mjs scripts/sync-release-versions.test.mjs",
+    "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"scripts/**/*.mjs\"",
+    "release": "np --no-tests --no-publish",
+    "version": "node scripts/sync-release-versions.mjs"
   },
   "dependencies": {
     "stripe": "^20.4.1"
   },
   "peerDependencies": {
     "@hono/zod-validator": "^0.8.0",
+    "@rdlabo/workers-mysql": "^0.1.0",
+    "@rdlabo/workers-timezone": "^0.1.0",
     "ai": "^6.0.0",
     "ai-gateway-provider": "^3.1.0",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.0",
     "jose": "^6.2.0",
-    "mysql2": "^3.14.0",
     "zod": "^4.4.0"
   },
   "peerDependenciesMeta": {
+    "@rdlabo/workers-mysql": {
+      "optional": true
+    },
+    "@rdlabo/workers-timezone": {
+      "optional": true
+    },
     "ai": {
       "optional": true
     },
-    "ai-gateway-provider": {
-      "optional": true
-    },
     "drizzle-orm": {
-      "optional": true
-    },
-    "mysql2": {
       "optional": true
     }
   },
@@ -143,7 +157,7 @@
     "eslint": "^9.39.4",
     "hono": "^4.6.0",
     "jose": "^6.2.3",
-    "mysql2": "3.22.5",
+    "mysql2": "3.24.3",
     "np": "^8.0.4",
     "prettier": "^3.8.4",
     "typescript": "~5.6.2",

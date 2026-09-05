@@ -47,8 +47,6 @@ export type {
 } from './middleware/maintenance.js';
 export { createIsolateMemo } from './container/isolate-memo.js';
 export type { IsolateMemo } from './container/isolate-memo.js';
-export { createContainerRuntime } from './container/middleware.js';
-export type { ContainerBuildContext, ContainerRuntime, ContainerRuntimeOptions } from './container/middleware.js';
 
 // authorization
 export { createRolePolicy } from './authorization/role-policy.js';
@@ -196,9 +194,6 @@ export type {
   GoogleSubscriptionPurchase,
   GoogleOAuthCredentials,
 } from './iap/google.js';
-
-// db
-export { retryWhenDeadlock } from './db/retry.js';
 
 // queue
 export { sendInChunks } from './queue/send.js';

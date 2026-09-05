@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { QueryRunner } from './database.js';
 import { baselineMigrations, readBaselineEntry } from './migrate.js';
 
-// kit の DB 系 spec は「ローカル MySQL 不要」の方針に従い、QueryRunner をフェイクして SQL 応答を
+// package の DB 系 spec は「ローカル MySQL 不要」の方針に従い、QueryRunner をフェイクして SQL 応答を
 // スクリプトする。fs は baseline フォルダ fixture（temp dir）で本物を使う。
 
 const WHEN = 1781921343070;
@@ -15,7 +15,7 @@ const SQL = 'CREATE TABLE `users` (`id` int);';
 let folder: string;
 
 beforeEach(() => {
-  folder = mkdtempSync(join(tmpdir(), 'kit-mig-'));
+  folder = mkdtempSync(join(tmpdir(), 'workers-mysql-mig-'));
   mkdirSync(join(folder, 'meta'), { recursive: true });
   writeFileSync(
     join(folder, 'meta', '_journal.json'),

@@ -6,7 +6,7 @@
  * Casing is configured in two distinct places:
  *
  * 1. The top-level `casing` in `drizzle.config.ts` decides the column names that `db:generate`
- *    **creates** (see {@link honoDrizzleConfig}).
+ *    **creates** (see {@link workersDrizzleConfig}).
  * 2. The `drizzle(conn, { …casing })` call decides the column names the **runtime write builder**
  *    resolves to (see {@link DRIZZLE_ORM_OPTIONS}).
  *
@@ -17,7 +17,7 @@
  * an explicit name, so this is a pure safety net that does not change existing behavior.
  *
  * The runtime `drizzle()` call itself is made by the consuming app with its own `drizzle-orm`; the
- * kit only ever provides values, never the ORM instance, to avoid splitting `drizzle-orm` into two
+ * package only provides values, never the ORM instance, to avoid splitting `drizzle-orm` into two
  * copies and breaking type identity.
  */
 
@@ -34,9 +34,9 @@
 export const DRIZZLE_ORM_OPTIONS = { mode: 'default', casing: 'snake_case' } as const;
 
 /**
- * Options for {@link honoDrizzleConfig}.
+ * Options for {@link workersDrizzleConfig}.
  */
-export interface HonoDrizzleConfigOptions {
+export interface WorkersDrizzleConfigOptions {
   /** drizzle-kit `dbCredentials.database` — the database name to connect to. */
   database: string;
   /** Database host; defaults to `process.env.DB_HOST` then `127.0.0.1`. */
@@ -64,26 +64,26 @@ export interface HonoDrizzleConfigOptions {
 }
 
 /**
- * Build a `drizzle.config.ts` configuration object with the kit's standard defaults.
+ * Build a `drizzle.config.ts` configuration object with the Workers MySQL defaults.
  *
  * Fixes `casing: 'snake_case'`, the `schema`/`out` paths, and `dbCredentials` (with env-based
  * defaults), while leaving `tablesFilter` and `introspect` opt-in.
  *
  * @remarks
  * Returns a plain object rather than a typed drizzle-kit config so that `drizzle-kit` need not be a
- * dependency of the kit; the drizzle-kit CLI only reads the default export.
+ * dependency of this package; the drizzle-kit CLI only reads the default export.
  *
  * @param options - configuration overrides; only `database` is required.
  * @returns a plain configuration object suitable for `export default` in `drizzle.config.ts`.
  * @example
  * ```ts
  * // drizzle.config.ts
- * import { honoDrizzleConfig } from '@rdlabo/workers-hono-kit/db';
+ * import { workersDrizzleConfig } from '@rdlabo/workers-mysql/drizzle';
  *
- * export default honoDrizzleConfig({ database: 'app' });
+ * export default workersDrizzleConfig({ database: 'app' });
  * ```
  */
-export function honoDrizzleConfig(options: HonoDrizzleConfigOptions) {
+export function workersDrizzleConfig(options: WorkersDrizzleConfigOptions) {
   const {
     database,
     host,
@@ -128,6 +128,15 @@ export function honoDrizzleConfig(options: HonoDrizzleConfigOptions) {
   };
 }
 
+/**
+ * @deprecated Use {@link workersDrizzleConfig}; retained for source compatibility with
+ * `@rdlabo/workers-hono-kit/db`.
+ */
+export const honoDrizzleConfig = workersDrizzleConfig;
+
+/** @deprecated Use {@link WorkersDrizzleConfigOptions}. */
+export type HonoDrizzleConfigOptions = WorkersDrizzleConfigOptions;
+
 /** The return value of {@link resolveDbSecret} (normalized connection info). */
 export interface ResolvedDbSecret {
   host: string;
@@ -146,7 +155,7 @@ export interface ResolvedDbSecret {
  *   (rather than silently falling back to localhost and causing an incident). A missing `port` alone
  *   defaults to 3306.
  *
- * Both `honoDrizzleConfig` (db:migrate) and the `workers-hono-kit-db-baseline` bin use this same logic.
+ * Both `workersDrizzleConfig` (db:migrate) and the compatibility baseline command use this logic.
  *
  * @returns the resolved connection info, or `undefined` when `DB_SECRET` is unset.
  * @throws Error when `DB_SECRET` is set but is not valid JSON or is missing a required key.

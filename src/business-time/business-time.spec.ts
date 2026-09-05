@@ -1,10 +1,14 @@
+import * as canonicalExports from '@rdlabo/workers-timezone';
 import { describe, it, expect } from 'vitest';
+import * as legacyExports from './index.js';
 import {
   addBusinessDays,
   ageOnBusinessDate,
   businessDateTimeInstant,
   endOfBusinessDay,
   formatBusinessDateTime,
+  getBusinessTimeConfig,
+  initializeBusinessTime,
   normalizeBusinessDate,
   parseBusinessDateTime,
   startOfBusinessDay,
@@ -12,6 +16,17 @@ import {
   toBusinessDate,
   toBusinessDateTime,
 } from './index.js';
+
+describe('legacy export parity', () => {
+  it('canonical packageの全runtime exportを同一参照でre-exportする', () => {
+    expect(Object.keys(legacyExports).sort()).toEqual(Object.keys(canonicalExports).sort());
+    for (const name of Object.keys(canonicalExports)) {
+      expect(legacyExports[name as keyof typeof legacyExports]).toBe(
+        canonicalExports[name as keyof typeof canonicalExports],
+      );
+    }
+  });
+});
 
 describe('normalizeBusinessDate', () => {
   it('YYYY-MM-DD 文字列は Date 化せずそのまま返す', () => {
@@ -31,6 +46,7 @@ describe('normalizeBusinessDate', () => {
     expect(normalizeBusinessDate(null)).toBeNull();
     expect(normalizeBusinessDate('')).toBeNull();
     expect(normalizeBusinessDate('not-a-date')).toBeNull();
+    expect(normalizeBusinessDate('2026-02-30')).toBeNull();
   });
 });
 
@@ -76,6 +92,11 @@ describe('businessDateTimeInstant / parseBusinessDateTime', () => {
     );
   });
 
+  it('不正な暦日をDate rolloverせず拒否する', () => {
+    expect(() => businessDateTimeInstant('2026-02-30', '09:00:00')).toThrow('Invalid BusinessDate');
+    expect(() => parseBusinessDateTime('2026-02-30 09:00:00')).toThrow('Invalid BusinessDate');
+  });
+
   it('startOfBusinessDay / endOfBusinessDay', () => {
     expect(startOfBusinessDay('2026-07-05').toISOString()).toBe('2026-07-04T15:00:00.000Z');
     expect(endOfBusinessDay('2026-07-05').toISOString()).toBe('2026-07-05T14:59:59.000Z');
@@ -97,5 +118,57 @@ describe('ageOnBusinessDate', () => {
 
   it('asOf 省略時は today(ref) 相当の暦日を使う', () => {
     expect(ageOnBusinessDate('2000-01-01', today(new Date('2026-06-15T00:00:00Z')))).toBe(26);
+  });
+});
+
+describe('IANA timezone support', () => {
+  it('同じinstantを利用者のタイムゾーンで変換する', () => {
+    const instant = new Date('2026-01-01T00:30:00Z');
+    expect(toBusinessDateTime(instant, 'America/Los_Angeles')).toBe('2025-12-31 16:30:00');
+    expect(toBusinessDateTime(instant, 'Europe/London')).toBe('2026-01-01 00:30:00');
+    expect(toBusinessDateTime(instant, 'Asia/Kolkata')).toBe('2026-01-01 06:00:00');
+  });
+
+  it('DSTの夏時間と冬時間をIANAルールで解決する', () => {
+    expect(businessDateTimeInstant('2026-07-01', '09:00:00', 'America/New_York').toISOString()).toBe(
+      '2026-07-01T13:00:00.000Z',
+    );
+    expect(businessDateTimeInstant('2026-01-01', '09:00:00', 'America/New_York').toISOString()).toBe(
+      '2026-01-01T14:00:00.000Z',
+    );
+  });
+
+  it('DST開始で存在しないwall clockは拒否する', () => {
+    expect(() => businessDateTimeInstant('2026-03-08', '02:30:00', 'America/New_York')).toThrow(
+      'Local date-time does not exist',
+    );
+  });
+
+  it('DST終了で重複するwall clockは早い方を選ぶ', () => {
+    expect(businessDateTimeInstant('2026-11-01', '01:30:00', 'America/New_York').toISOString()).toBe(
+      '2026-11-01T05:30:00.000Z',
+    );
+  });
+
+  it('日境界は23時間または25時間になり得る', () => {
+    const start = startOfBusinessDay('2026-03-08', 'America/New_York');
+    const next = startOfBusinessDay('2026-03-09', 'America/New_York');
+    expect(next.getTime() - start.getTime()).toBe(23 * 60 * 60 * 1000);
+  });
+
+  it('不正なIANA timezoneを拒否する', () => {
+    expect(() => toBusinessDate(new Date(), 'Mars/Olympus_Mons')).toThrow(RangeError);
+  });
+});
+
+describe('initializeBusinessTime', () => {
+  it('isolate全体のtimezoneを一度設定し、以後の省略時に利用する', () => {
+    expect(initializeBusinessTime({ timeZone: 'America/New_York' })).toEqual({ timeZone: 'America/New_York' });
+    expect(getBusinessTimeConfig()).toEqual({ timeZone: 'America/New_York' });
+    expect(toBusinessDateTime(new Date('2026-07-01T13:00:00Z'))).toBe('2026-07-01 09:00:00');
+    expect(initializeBusinessTime({ timeZone: 'America/New_York' })).toEqual({ timeZone: 'America/New_York' });
+    expect(() => initializeBusinessTime({ timeZone: 'Europe/London' })).toThrow(
+      'Timezone is already initialized with America/New_York',
+    );
   });
 });

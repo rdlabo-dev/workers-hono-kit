@@ -19,10 +19,10 @@ import { retryWhenDeadlock } from './retry.js';
  *
  * Both sides retry on `ER_LOCK_DEADLOCK`.
  *
- * The kit deliberately avoids depending on the type identity of `drizzle-orm`: the consumer creates
+ * This package deliberately avoids depending on the type identity of `drizzle-orm`: the consumer creates
  * the ORM instance with its own copy of `drizzle-orm` and passes it in, and {@link Database} is
  * generic over that ORM type (`TDrizzle`). This keeps the ORM's `MySqlTable`/`SQL` brands from
- * clashing even when the kit and the consumer resolve separate copies of `drizzle-orm`.
+ * clashing even when the package and consumer resolve separate copies of `drizzle-orm`.
  */
 
 /**
@@ -416,7 +416,7 @@ export function databaseFrom<TDrizzle>(orm: TDrizzle, replica: QueryRunner): Dat
  * Re-export of the mysql2 `Connection` and `Pool` types.
  *
  * @remarks
- * Both are structurally assignable to the kit's {@link QueryRunner}.
+ * Both are structurally assignable to this package's {@link QueryRunner}.
  */
 export type { Connection, Pool };
 

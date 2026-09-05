@@ -1,3 +1,4 @@
+import { initializeTimezone } from '@rdlabo/workers-timezone';
 import { describe, it, expect } from 'vitest';
 import { toJstDate } from './jst.js';
 
@@ -12,6 +13,11 @@ describe('toJstDate (DATE 列 toDriver)', () => {
     expect(toJstDate('not-a-date')).toBeNull();
   });
 
+  it('passes date-only values through for the database to validate', () => {
+    expect(toJstDate('2026-02-30')).toBe('2026-02-30');
+    expect(toJstDate('0000-01-01')).toBe('0000-01-01');
+  });
+
   it('normalizes an ISO 8601 (Z) string to a YYYY-MM-DD JST date', () => {
     expect(toJstDate('2026-06-22T00:00:00.000Z')).toBe('2026-06-22');
   });
@@ -23,5 +29,14 @@ describe('toJstDate (DATE 列 toDriver)', () => {
   it('applies the JST (+9h) offset, rolling to the next day past 15:00 UTC', () => {
     expect(toJstDate('2026-06-22T15:30:00.000Z')).toBe('2026-06-23');
     expect(toJstDate('2026-06-22T20:00:00.000Z')).toBe('2026-06-23');
+  });
+
+  it('uses the database fixed +09:00 offset rather than historical Tokyo DST', () => {
+    expect(toJstDate('1950-07-01T14:30:00.000Z')).toBe('1950-07-01');
+  });
+
+  it('remains pinned to JST after the application initializes another default timezone', () => {
+    initializeTimezone({ timeZone: 'America/New_York' });
+    expect(toJstDate('2026-07-01T02:00:00.000Z')).toBe('2026-07-01');
   });
 });

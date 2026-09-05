@@ -2,16 +2,20 @@
  * JST wire conversion and DATE-column normalization for MySQL / Drizzle.
  *
  * @remarks
- * Business-time semantics are consolidated in {@link ../business-time/index.js | business-time}. This
- * module only owns the MySQL connection default, the DATE column's `toDriver`, and the column
- * `customType` params.
+ * This module owns the MySQL fixed `+09:00` contract independently of any business-time
+ * package, plus the DATE column's `toDriver` and the column `customType` params.
  */
-
-import { normalizeBusinessDate } from '../business-time/index.js';
-import type { BusinessDate } from '../business-time/index.js';
 
 /** Default mysql2 connection `timezone` (for the existing JST DB deployment). */
 export const MYSQL_TIMEZONE = '+09:00';
+
+const JST_OFFSET_MILLISECONDS = 9 * 60 * 60 * 1_000;
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+function fixedJstDate(instant: Date): string {
+  const wallClock = new Date(instant.getTime() + JST_OFFSET_MILLISECONDS);
+  return `${String(wallClock.getUTCFullYear()).padStart(4, '0')}-${pad2(wallClock.getUTCMonth() + 1)}-${pad2(wallClock.getUTCDate())}`;
+}
 
 /**
  * Normalize a client input to `YYYY-MM-DD` (a JST business calendar date) for a MySQL `DATE` column.
@@ -21,8 +25,16 @@ export const MYSQL_TIMEZONE = '+09:00';
  * @param value - the string or nullish input to normalize.
  * @returns the business date as `YYYY-MM-DD`, or `null` when the input cannot be resolved.
  */
-export function toJstDate(value: string | null | undefined): BusinessDate | null {
-  return normalizeBusinessDate(value ?? null);
+export function toJstDate(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const instant = new Date(trimmed);
+  return Number.isNaN(instant.getTime()) ? null : fixedJstDate(instant);
 }
 
 /**

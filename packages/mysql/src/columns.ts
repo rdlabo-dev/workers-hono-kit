@@ -3,15 +3,15 @@
  * in each repo.
  *
  * @remarks
- * `drizzle-orm` is a **peer** (the consumer resolves a single copy); the kit does not bundle it. The
+ * `drizzle-orm` is a **peer** (the consumer resolves a single copy); this package does not bundle it. The
  * return types are the `customType` inference as-is (`MySqlCustomColumnBuilder<…>`) with no `any`, so
  * the column's semantic type (`string | Date`, etc.) propagates to the consumer table's `$inferSelect`.
  *
  * **Precondition (a single drizzle copy)**: Drizzle's `SQL` is a **nominal** type carrying a private
- * field `shouldInlineParams`, so if the kit and the consumer resolve different copies of drizzle,
+ * field `shouldInlineParams`, so if the package and consumer resolve different copies of drizzle,
  * `jstTimestamp(…).default(sql\`…\`)` fails with `TS2345: separate declarations of a private property
- * 'shouldInlineParams'`. The fleet references the kit via a `file:` link, which tends to nest a second
- * copy of drizzle under the kit. Pin `drizzle-orm` to the consumer's **own single copy** with tsconfig
+ * 'shouldInlineParams'`. A direct `file:` link can nest a second copy of drizzle under the package.
+ * Pin `drizzle-orm` to the consumer's **own single copy** with tsconfig
  * `paths` (see the "Drizzle column helpers" section of the README). The published package (a single
  * copy) is already unified.
  *

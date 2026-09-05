@@ -1,6 +1,8 @@
 ## Testing entry point
 
-`@rdlabo/workers-hono-kit/testing` requires the database peers and is never loaded by production code.
+`@rdlabo/workers-hono-kit/testing` is never loaded by production code. Its DB helpers are deprecated
+compatibility exports from `@rdlabo/workers-mysql/testing`, while Firebase, HTTP, Stripe, KV, and
+Queue fakes remain in the Hono kit.
 
 | Helper                                                          | Use                                                                   |
 | --------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -18,7 +20,11 @@
 
 ## Operational CLI
 
-The package publishes commands for synchronizing development AWS credentials, checking subrequest fanout, creating database baselines, checking realtime bundles, and querying Durable Object metrics. Run the exact CLI shipped with the installed package version and review its `--help` before changing infrastructure.
+The Hono kit publishes commands for synchronizing development AWS credentials, checking subrequest
+fanout, checking realtime bundles, and querying Durable Object metrics. Database baselining is owned
+by `workers-mysql-db-baseline`; the old `workers-hono-kit-db-baseline` command delegates to it during
+the compatibility period. Run the exact CLI shipped with the installed version before changing
+infrastructure.
 
 ## Trust boundaries
 

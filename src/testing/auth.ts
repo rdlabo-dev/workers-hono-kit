@@ -1,4 +1,4 @@
-import type { Pool } from 'mysql2/promise';
+import type { Pool } from '@rdlabo/workers-mysql';
 import type { DecodedIdToken } from '../firebase/firebase-verifier.js';
 import type { FakeFirebaseVerifier } from './fakes.js';
 

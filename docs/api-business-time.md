@@ -1,33 +1,50 @@
-# API: `@rdlabo/workers-hono-kit/business-time`
+# API: `@rdlabo/workers-timezone`
 
-String-level JST business-time conversions (Workers UTC instant ↔ business calendar date / date-time), with **no `mysql2` / `drizzle-orm` dependency**. This is a different layer from the `./db` column helpers (which handle the MySQL wire format): the DB stays on JST, and the app handles JST explicitly through this module instead of relying implicitly on the connection `timezone`.
+Install with `npm install @rdlabo/workers-timezone`. The kit's `/business-time` entry point is a
+deprecated compatibility re-export from `0.12.0`.
 
-| Export | Description |
-| --- | --- |
-| `today(ref?)` | The JST business calendar date (`YYYY-MM-DD`) of `ref` (defaults to now). |
-| `toBusinessDate(instant)` | UTC instant → JST business calendar date (`YYYY-MM-DD`). |
-| `normalizeBusinessDate(value)` | Normalize a `string` / `Date` / nullish to `YYYY-MM-DD`; a `YYYY-MM-DD` string passes through unchanged, nullish/empty/invalid → `null`. |
-| `toBusinessDateTime(instant)` | UTC instant → JST business date-time (`YYYY-MM-DD HH:mm:ss`). |
-| `parseBusinessDateTime(value)` | JST business date-time string → UTC instant (accepts a space or `T` separator). |
-| `formatBusinessDateTime(instant, pattern?)` | Format an instant in the business TZ (Nest `helper.formatDate`-compatible tokens). |
-| `startOfBusinessDay(date)` / `endOfBusinessDay(date)` | UTC instant of `00:00:00` / `23:59:59` on a JST business date. |
-| `businessDateTimeInstant(date, time)` | JST business date + wall-clock time → UTC instant. |
-| `addBusinessDays(date, days)` | Add calendar days to a JST business date. |
-| `ageOnBusinessDate(birthDate, asOfDate?)` | Full years of age on a business date (`asOfDate` defaults to `today()`). |
-| `DEFAULT_BUSINESS_DATETIME_PATTERN` | Default `formatBusinessDateTime` pattern (`YYYY-MM-DDThh:mm:ss`). |
-| `BUSINESS_TIMEZONE` / `BusinessDate` / `BusinessDateTime` | JST timezone constant and the business-date / date-time string types. |
+Timezone-aware calendar and wall-clock conversion for Cloudflare Workers, with no database or Node
+runtime dependency. The uninitialized default remains `Asia/Tokyo` for compatibility.
 
 ```ts
-import {
-  toBusinessDate,
-  toBusinessDateTime,
-  formatBusinessDateTime,
-  addBusinessDays,
-} from '@rdlabo/workers-hono-kit/business-time';
+import { TIME_ZONES, initializeTimezone, toLocalDateTime } from '@rdlabo/workers-timezone';
 
-const now = new Date('2026-07-05T21:00:00Z');
-toBusinessDate(now); // '2026-07-06' (JST)
-toBusinessDateTime(now); // '2026-07-06 06:00:00'
-formatBusinessDateTime(now); // '2026-07-06T06:00:00'
-addBusinessDays('2026-07-06', 3); // '2026-07-09'
+initializeTimezone({ timeZone: TIME_ZONES.NEW_YORK });
+toLocalDateTime(new Date('2026-07-01T13:00:00Z')); // '2026-07-01 09:00:00'
+```
+
+Initialize once during module evaluation using deployment-wide static configuration. Do not mutate
+the default per request, user, or tenant. Every conversion function accepts an explicit IANA
+timezone override without changing the module-instance default.
+
+| Export                                          | Description                                                                      |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `initializeTimezone(config)`                    | Set the module-instance default once; repeated identical initialization is safe. |
+| `getTimezoneConfig()`                           | Return the active configuration.                                                 |
+| `toLocalDate(instant, timeZone?)`               | Instant to local `YYYY-MM-DD`.                                                   |
+| `toLocalDateTime(instant, timeZone?)`           | Instant to local `YYYY-MM-DD HH:mm:ss`.                                          |
+| `localDateTimeToInstant(date, time, timeZone?)` | Local calendar date and wall clock to an instant.                                |
+| `startOfDay` / `endOfDay`                       | First or final representable whole second of a local calendar day.               |
+| `addDays(date, days)`                           | Add calendar days without assuming a 24-hour day.                                |
+| `TIME_ZONES` / `TimeZone`                       | Common typed constants and the open IANA timezone type.                          |
+
+IANA rules determine daylight-saving and historical offsets. A skipped local clock throws
+`RangeError`; when a clock occurs twice during a DST overlap, the earlier instant is selected.
+
+## Legacy compatibility
+
+`@rdlabo/workers-hono-kit/business-time` is deprecated and re-exports the same module instance from
+`@rdlabo/workers-timezone`. Existing names such as `today`, `normalizeBusinessDate`,
+`toBusinessDateTime`, `businessDateTimeInstant`, `formatBusinessDateTime`, and
+`ageOnBusinessDate` remain available during migration.
+
+This is source compatibility for API names, not full output compatibility. Results now follow IANA
+historical offsets instead of the legacy fixed `+09:00`, so historical dates can change when
+Tokyo's offset was not `+09:00`. Impossible `YYYY-MM-DD` values now normalize to `null`; invalid
+date-time construction and parsing throw `RangeError` instead of using JavaScript `Date` rollover.
+Treat both behavior changes as breaking when planning the migration.
+
+```ts
+// Deprecated; migrate the import path when practical.
+import { toBusinessDateTime } from '@rdlabo/workers-hono-kit/business-time';
 ```

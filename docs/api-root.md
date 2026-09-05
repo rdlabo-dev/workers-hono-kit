@@ -1,6 +1,13 @@
 # API: `@rdlabo/workers-hono-kit`
 
-The root export is web-standard only: it runs on `workerd` and never depends on Node.js APIs or `mysql2`. The table below lists the helpers exported from the root entry point.
+The root export runs on `workerd` without loading MySQL or Drizzle. It requires
+`ai-gateway-provider` because it statically exports `createAiGatewayProvider`. Install it with
+`npm install @rdlabo/workers-hono-kit ai-gateway-provider`. MySQL infrastructure lives in
+`@rdlabo/workers-mysql`; its Hono adapter is `@rdlabo/workers-hono-kit/mysql`.
+
+Version `0.12.0` moves the former root exports `createContainerRuntime` and
+`retryWhenDeadlock` to those MySQL-specific entry points. This is intentionally not a root
+re-export: retaining it would make MySQL runtime and declaration resolution mandatory again.
 
 | Export | Description |
 | --- | --- |
@@ -16,7 +23,6 @@ The root export is web-standard only: it runs on `workerd` and never depends on 
 | `createRemoteFirebaseVerifier(projectId)` | Convenience factory: production verifier with a cached remote JWKS (verification only). |
 | `createServiceAccountVerifier(serviceAccountJson)` | Cached verifier built from a service-account JSON, **with `IdentityToolkit`** (getUser/deleteUser). One per isolate, re-created only when the SA JSON changes. |
 | `IdentityToolkit` / `ServiceAccount` / `SECURETOKEN_JWK_URL` | Identity Toolkit REST client + constants for `getUser` / `deleteUser`. |
-| `retryWhenDeadlock(fn, retries?, delay?)` | Retry on MySQL `ER_LOCK_DEADLOCK` with exponential backoff. |
 | `getUserProtocol(c)` / `IUserProtocol` | Read client IP / UA (`CF-Connecting-IP` → `X-Forwarded-For`). |
 | `getAppInfo(c)` / `AppInfo` | Read `x-amz-meta-version` / `x-amz-meta-uuid`. |
 | `resolveAppEnv(env)` / `isProductionEnv(env)` / `AppEnv` | Resolve `'development'` / `'production'` from `env.APP_ENV` (defaults to `'production'` for safety). |

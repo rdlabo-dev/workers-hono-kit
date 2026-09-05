@@ -1,7 +1,6 @@
+import { withMysqlConnections } from '@rdlabo/workers-mysql';
+import type { Connection, HyperdriveLike } from '@rdlabo/workers-mysql';
 import type { Env, MiddlewareHandler } from 'hono';
-import type { Connection } from 'mysql2/promise';
-import { withMysqlConnections } from '../db/connection.js';
-import type { HyperdriveLike } from '../db/connection.js';
 import type { ExecutionContextLike } from '../http/execution-context.js';
 
 /** Inputs available while building a per-request application container. */

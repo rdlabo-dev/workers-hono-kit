@@ -53,6 +53,9 @@ jobs:
 
   release:
     if: github.event_name == 'push'
+    concurrency:
+      group: npm-workspace-publish
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -101,28 +104,41 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify synchronized release versions
+        run: node scripts/sync-release-versions.mjs --check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check format
+        run: npm run format:check
+
       - name: Test
         run: npm run test
         env:
           CI: true
 
+      - name: Test release validation
+        run: npm run test:release
+
       - name: Build
         run: npm run build
 
-      - name: Publish packages
-        run: |
-          VERSION="${{ steps.tag_version.outputs.version }}"
-          IS_STABLE=$(echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' && echo true || echo false)
+      - name: Test packaged consumers
+        run: npm run test:package
 
-          echo "Publishing... $IS_STABLE"
-          if [ "$IS_STABLE" = "true" ]; then
-            npm publish --provenance --access public --tag latest
-          elif echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$'; then
-            npm publish --provenance --access public --tag next
+      - name: Pack and publish dependencies before kit
+        env:
+          RELEASE_VERSION: ${{ steps.tag_version.outputs.version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/npm-release"
+          npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destination "$RUNNER_TEMP/npm-release"
+          if [[ "$RELEASE_VERSION" == *-* ]]; then
+            RELEASE_TAG=next
           else
-            echo "::error::Refusing to publish an invalid release version: $VERSION"
-            exit 1
+            RELEASE_TAG=latest
           fi
+          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-release" --manifests . --tag "$RELEASE_TAG" --publish
 
   authorize-candidate:
     if: >-
@@ -162,6 +178,9 @@ jobs:
               '.github/workflows/package-candidate.yml',
               '.github/workflows/release.yml',
               '.github/workflows/validation.yml',
+              'scripts/publish-packages.mjs',
+              'scripts/version-package-candidate.mjs',
+              'scripts/sync-release-versions.mjs',
             ];
             const tryCreateComment = async (body) => {
               try {
@@ -358,11 +377,8 @@ jobs:
               run_id: candidateRun.id,
               per_page: 100,
             });
-            const artifact = artifacts.find(
-              (candidate) => candidate.name === artifactName && !candidate.expired,
-            );
-            if (!artifact) {
-              core.setFailed(`The immutable package artifact ${artifactName} is missing or expired.`);
+            if (!artifacts.some((candidate) => candidate.name === artifactName && !candidate.expired)) {
+              core.setFailed(`An immutable workspace artifact for ${artifactName} is missing or expired.`);
               return;
             }
 
@@ -384,8 +400,11 @@ jobs:
     if: needs.authorize-candidate.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     concurrency:
-      group: npm-${{ needs.authorize-candidate.outputs.dist-tag }}-${{ needs.authorize-candidate.outputs.head-sha }}
+      group: npm-workspace-publish
       cancel-in-progress: false
+    outputs:
+      timezone-version: ${{ steps.source.outputs.timezone-version }}
+      mysql-version: ${{ steps.source.outputs.mysql-version }}
     env:
       NPM_CONFIG_TAG: ${{ needs.authorize-candidate.outputs.dist-tag }}
       NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
@@ -397,6 +416,7 @@ jobs:
 
     steps:
       - name: Revalidate authorization and source
+        id: source
         uses: actions/github-script@v8
         env:
           DIST_TAG: ${{ needs.authorize-candidate.outputs.dist-tag }}
@@ -415,6 +435,8 @@ jobs:
               repo,
               run_id: Number(process.env.RUN_ID),
             });
+            const { data: trustedBranch } = await github.rest.repos.getBranch({ owner, repo, branch: defaultBranch });
+            const trustedSha = trustedBranch.commit.sha;
             const expectedEvent = process.env.SOURCE_KIND === 'comment' ? 'pull_request' : 'push';
             if (
               run.name !== 'Package Candidate' ||
@@ -478,7 +500,7 @@ jobs:
               owner,
               repo,
               path: 'package.json',
-              ref: defaultBranch,
+              ref: trustedSha,
             });
             if (Array.isArray(data) || data.type !== 'file' || !data.content) {
               core.setFailed('Trusted package.json could not be read.');
@@ -492,7 +514,47 @@ jobs:
               expectedVersion !== process.env.VERSION
             ) {
               core.setFailed('Trusted package identity changed after authorization; rerun the release request.');
+              return;
             }
+            const { data: timezoneData } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'packages/timezone/package.json',
+              ref: trustedSha,
+            });
+            if (Array.isArray(timezoneData) || timezoneData.type !== 'file' || !timezoneData.content) {
+              core.setFailed('Trusted timezone package.json could not be read.');
+              return;
+            }
+            const timezonePackage = JSON.parse(Buffer.from(timezoneData.content, 'base64').toString('utf8'));
+            if (timezonePackage.private !== false) {
+              core.setFailed('Candidate publishing is disabled while @rdlabo/workers-timezone is private.');
+              return;
+            }
+            const { data: mysqlData } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'packages/mysql/package.json',
+              ref: trustedSha,
+            });
+            if (Array.isArray(mysqlData) || mysqlData.type !== 'file' || !mysqlData.content) {
+              core.setFailed('Trusted MySQL package.json could not be read.');
+              return;
+            }
+            const mysqlPackage = JSON.parse(Buffer.from(mysqlData.content, 'base64').toString('utf8'));
+            if (mysqlPackage.private !== false) {
+              core.setFailed('Candidate publishing is disabled while @rdlabo/workers-mysql is private.');
+              return;
+            }
+            core.setOutput('trusted-sha', trustedBranch.commit.sha);
+            core.setOutput('timezone-version', `${timezonePackage.version.split('-')[0]}-beta.pr${process.env.PR_NUMBER}.sha${process.env.HEAD_SHA.slice(0, 12)}`);
+            core.setOutput('mysql-version', `${mysqlPackage.version.split('-')[0]}-beta.pr${process.env.PR_NUMBER}.sha${process.env.HEAD_SHA.slice(0, 12)}`);
+
+      - name: Checkout trusted publisher implementation
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.source.outputs.trusted-sha }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -515,37 +577,10 @@ jobs:
 
       - name: Validate and publish candidate
         env:
-          EXPECTED_NAME: ${{ needs.authorize-candidate.outputs.package }}
-          EXPECTED_VERSION: ${{ needs.authorize-candidate.outputs.version }}
-          DIST_TAG: ${{ needs.authorize-candidate.outputs.dist-tag }}
+          PR_NUMBER: ${{ needs.authorize-candidate.outputs.pr-number }}
+          HEAD_SHA: ${{ needs.authorize-candidate.outputs.head-sha }}
         run: |
-          shopt -s nullglob
-          PACKAGES=("$RUNNER_TEMP"/npm-candidate/*.tgz)
-          if [ "${#PACKAGES[@]}" -ne 1 ]; then
-            echo "::error::Expected exactly one package archive, found ${#PACKAGES[@]}."
-            exit 1
-          fi
-          PACKAGE_ARCHIVE="${PACKAGES[0]}"
-          ACTUAL_NAME=$(tar -xOf "$PACKAGE_ARCHIVE" package/package.json | node -e "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).name));")
-          ACTUAL_VERSION=$(tar -xOf "$PACKAGE_ARCHIVE" package/package.json | node -e "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).version));")
-          ACTUAL_REGISTRY=$(tar -xOf "$PACKAGE_ARCHIVE" package/package.json | node -e "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).publishConfig?.registry || ''));")
-          if [ "$ACTUAL_NAME" != "$EXPECTED_NAME" ] || [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "::error::Artifact identity mismatch: ${ACTUAL_NAME}@${ACTUAL_VERSION}"
-            exit 1
-          fi
-          if [ -n "$ACTUAL_REGISTRY" ] && [ "$ACTUAL_REGISTRY" != "https://registry.npmjs.org" ] && [ "$ACTUAL_REGISTRY" != "https://registry.npmjs.org/" ]; then
-            echo "::error::Refusing package with an unexpected publish registry: $ACTUAL_REGISTRY"
-            exit 1
-          fi
-          if [ "$DIST_TAG" != "beta" ]; then
-            echo "::error::Refusing unsupported dist-tag: $DIST_TAG"
-            exit 1
-          fi
-          if npm view "${EXPECTED_NAME}@${EXPECTED_VERSION}" version --registry "$NPM_CONFIG_REGISTRY" >/dev/null 2>&1; then
-            echo "${EXPECTED_NAME}@${EXPECTED_VERSION} already exists; skipping publish."
-          else
-            npm publish "$PACKAGE_ARCHIVE" --ignore-scripts --provenance --access public --registry "$NPM_CONFIG_REGISTRY" --tag "$DIST_TAG"
-          fi
+          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate" --manifests . --tag beta --suffix "beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}" --publish
 
   comment-candidate:
     needs: [authorize-candidate, publish-candidate]
@@ -571,6 +606,8 @@ jobs:
           PR_NUMBER: ${{ needs.authorize-candidate.outputs.pr-number }}
           SOURCE_KIND: ${{ needs.authorize-candidate.outputs.source-kind }}
           VERSION: ${{ needs.authorize-candidate.outputs.version }}
+          TIMEZONE_VERSION: ${{ needs.publish-candidate.outputs.timezone-version }}
+          MYSQL_VERSION: ${{ needs.publish-candidate.outputs.mysql-version }}
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -581,7 +618,7 @@ jobs:
             const authorization = process.env.SOURCE_KIND === 'comment'
               ? `CI passed and a repository owner or maintainer requested \`/beta\` for commit \`${shortSha}\``
               : `CI passed for the merge commit \`${shortSha}\``;
-            const body = `${marker}\n### ${title}\n\n${authorization}. Install the immutable version with:\n\n\`\`\`sh\nnpm install ${process.env.PACKAGE_NAME}@${process.env.VERSION}\n\`\`\``;
+            const body = `${marker}\n### ${title}\n\n${authorization}. Install the immutable versions with:\n\n\`\`\`sh\nnpm install ${process.env.PACKAGE_NAME}@${process.env.VERSION} @rdlabo/workers-timezone@${process.env.TIMEZONE_VERSION} @rdlabo/workers-mysql@${process.env.MYSQL_VERSION} drizzle-orm\n\`\`\``;
             await core.summary.addRaw(body).write();
             if (!issueNumber) {
               core.notice('No associated merged pull request was found; wrote the install command to the job summary only.');

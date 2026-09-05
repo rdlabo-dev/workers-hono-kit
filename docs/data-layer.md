@@ -1,17 +1,50 @@
-Import database helpers from `@rdlabo/workers-hono-kit/db`. This entry point requires `drizzle-orm` and `mysql2`.
+Import database helpers from `@rdlabo/workers-mysql`. The package installs `mysql2` directly. Add
+`drizzle-orm` only when using the `/drizzle` or `/testing` entry point. The old
+`@rdlabo/workers-hono-kit/db` path is a deprecated compatibility re-export.
+
+Workers using `mysql2` must enable its required Node.js networking APIs:
+
+```toml
+# wrangler.toml
+compatibility_flags = ["nodejs_compat"]
+```
+
+```sh
+npm install @rdlabo/workers-mysql drizzle-orm
+npm install -D @types/node@20
+```
+
+For candidate tarball installation, see [Development](./development.md).
+
+## Migrating from workers-hono-kit
+
+The package boundary is a breaking change in `0.12.0`. Update these imports before
+upgrading:
+
+| Current import                                          | Replacement                                           |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                      |
+| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                               |
+| DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
+| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
+
+The old `/db` and DB-related `/testing` exports remain temporarily as deprecated migration aids.
+Because `/testing` statically re-exports DB helpers, all kit `/testing` consumers must install the
+MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as Firebase or KV fakes.
 
 ## Hyperdrive database
 
 `createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. `read()` uses the replica query runner; `query()` provides an explicit raw primary SELECT for read-after-write consistency; writes and transactions use the primary Drizzle instance. `readTransaction()` runs Drizzle and raw reads against one primary repeatable-read snapshot. Read transactions are serialized on one separately cached connection so their boundaries cannot mix with each other or with ordinary primary operations. After a fatal mysql2 connection error, a single read or the complete read-only transaction opens a fresh connection and repeats at most once. Writes and write transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
 
 ```ts
-import { createHyperdriveDatabase } from '@rdlabo/workers-hono-kit/db';
+import { createHyperdriveDatabase } from '@rdlabo/workers-mysql';
+import { DRIZZLE_ORM_OPTIONS } from '@rdlabo/workers-mysql/drizzle';
 import { drizzle } from 'drizzle-orm/mysql2';
 
 const db = createHyperdriveDatabase({
   primaryHyperdrive: env.DB_PRIMARY,
   replicaHyperdrive: env.DB_REPLICA,
-  createOrm: (primary) => drizzle(primary, { schema }),
+  createOrm: (primary) => drizzle(primary, { schema, ...DRIZZLE_ORM_OPTIONS }),
 });
 
 const rows = await db.read<Item>('SELECT * FROM items WHERE id = ?', [id]);
@@ -31,6 +64,12 @@ Do not call `readTransaction()` recursively from inside its callback. Calls shar
 
 Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connections. The default JavaScript date conversion timezone is `+09:00`; it does not change the MySQL session timezone.
 
+Hono applications that want the standard request container use the thin adapter separately:
+
+```ts
+import { createContainerRuntime } from '@rdlabo/workers-hono-kit/mysql';
+```
+
 ## Writes and retries
 
 - `retryWhenDeadlock()` retries `ER_LOCK_DEADLOCK` with exponential backoff.
@@ -41,10 +80,16 @@ Use `hyperdriveConnectionOptions()` when constructing lower-level mysql2 connect
 
 Use `jstTimestamp`, `jstDatetime`, and `jstDate` for shared date behavior. Pair update timestamps with `jstOnUpdateNow()` because custom timestamp types do not expose Drizzle's `.onUpdateNow()`. For decimal columns, use Drizzle's `decimal(name, { precision, scale, mode: 'number' })` directly.
 
-The `/business-time` entry point converts instants and business dates in the JST business timezone:
+Generic business-time conversion is separate from the DB's fixed `+09:00` wire contract.
+Install `@rdlabo/workers-timezone` directly and migrate from the kit's deprecated `/business-time`
+compatibility path to its canonical entry point.
+
+```sh
+npm install @rdlabo/workers-timezone
+```
 
 ```ts
-import { addBusinessDays, toBusinessDateTime } from '@rdlabo/workers-hono-kit/business-time';
+import { addBusinessDays, toBusinessDateTime } from '@rdlabo/workers-timezone';
 
 toBusinessDateTime(new Date('2026-07-05T21:00:00Z'));
 // '2026-07-06 06:00:00'
