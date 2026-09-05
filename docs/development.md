@@ -12,9 +12,10 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 
 ## Candidate artifacts and publication
 
-`@rdlabo/workers-timezone` and `@rdlabo/workers-mysql` are prepared for public release but require
-the initial owner publish described below. Pull requests and merges build immutable candidate tarballs for all three
-packages:
+The owner has completed the initial local publication of `@rdlabo/workers-timezone@0.1.0` and
+`@rdlabo/workers-mysql@0.1.0`. The existing Hono kit does not need another bootstrap publish;
+`0.12.0` is released through the normal tag workflow. Pull requests and merges build immutable
+candidate tarballs for all three packages:
 
 - `rdlabo-workers-hono-kit-*.tgz`
 - `rdlabo-workers-timezone-*.tgz`
@@ -27,19 +28,21 @@ npm install drizzle-orm ai-gateway-provider ./rdlabo-workers-mysql-*.tgz ./rdlab
 ```
 
 All CI publishing requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`. Keep it
-unset or false until initial publication and Trusted Publisher configuration are complete.
+unset or false until the two workspace publications are visible on npm and the Trusted Publisher
+and repository protection settings below are complete. This is an ongoing CI publication switch,
+not a requirement to publish every package locally.
 The publisher validates all three archives before any write, then publishes timezone, MySQL, and
 the kit in that order. A retry skips a version only when the registry's SHA-512 integrity matches
 the local tarball; different content under an existing version fails and requires a version bump.
 
-## Initial owner publication
+## Bootstrap complete: verify before enabling CI
 
-The initial versions are `workers-timezone@0.1.0`, `workers-mysql@0.1.0`, and
-`workers-hono-kit@0.12.0`. The kit's minor bump covers breaking import and timezone behavior changes.
-Use the reviewed commit after this PR is merged; keep the CI publishing variable disabled.
-Use Node.js 24 with a current npm CLI, and an npm account with publish access to the `@rdlabo` scope.
+Only the two new packages required an initial owner publish. Do not repeat their `0.1.0` publishes
+or publish Hono kit `0.12.0` locally just to enable CI. The kit's minor bump covers breaking import
+and timezone behavior changes and remains a normal release.
 
-From a clean checkout at the reviewed commit, prepare one bundle:
+Use Node.js 24 with a current npm CLI. From a clean checkout at the reviewed commit, verify the
+release bundle without publishing:
 
 ```sh
 npm ci
@@ -53,25 +56,23 @@ npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destinati
 node scripts/publish-packages.mjs --directory "$RELEASE_DIR" --manifests . --tag latest
 ```
 
-The last command only validates and prints the plan: it does not publish or contact npm. Keep the
-directory and use those exact archives for the following owner-operated commands:
+The last command only validates and prints the plan: it does not publish or contact npm.
+Confirm that the two bootstrap versions are visible on the public registry:
 
 ```sh
-npm login
-npm whoami
-npm publish "$RELEASE_DIR/rdlabo-workers-timezone-0.1.0.tgz" --ignore-scripts --access public --tag latest --registry https://registry.npmjs.org/
-npm publish "$RELEASE_DIR/rdlabo-workers-mysql-0.1.0.tgz" --ignore-scripts --access public --tag latest --registry https://registry.npmjs.org/
-npm publish "$RELEASE_DIR/rdlabo-workers-hono-kit-0.12.0.tgz" --ignore-scripts --access public --tag latest --registry https://registry.npmjs.org/
+npm view @rdlabo/workers-timezone@0.1.0 version --registry https://registry.npmjs.org/
+npm view @rdlabo/workers-mysql@0.1.0 version --registry https://registry.npmjs.org/
 ```
 
-Complete npm's authentication/2FA prompts locally. Stop if any publish fails; do not publish the kit
-before both standalone packages are available. Do not use CI's `--provenance` flag for these local
-commands. Never republish changed contents under an existing version.
+If either lookup fails, resolve registry visibility before enabling CI. Keep the published workspace
+contents unchanged: the tag workflow compares archive integrity and skips identical `0.1.0` versions
+before publishing the kit. Changes to any packaged workspace file require a new workspace version.
 
 ## Trusted Publishing setup after the first publish
 
 For **each of the three npm packages**, open npmjs.com → package → Settings → Trusted publishing
-and add GitHub Actions with these exact values:
+and add or verify GitHub Actions with these exact values. Retain the kit's existing configuration
+if it already matches:
 
 | Field                    | Value                                                        |
 | ------------------------ | ------------------------------------------------------------ |
@@ -83,14 +84,11 @@ and add GitHub Actions with these exact values:
 
 These npm-side settings can only be applied after the package exists; they are not created by a PR.
 See [npm's Trusted Publishing guide](https://docs.npmjs.com/trusted-publishers/).
-Verify the published versions and install all three into a clean consumer before enabling CI:
+Before enabling CI, test the two registry packages together with the locally packed, not-yet-published
+kit in a fresh consumer directory (using `RELEASE_DIR` from above):
 
 ```sh
-npm view @rdlabo/workers-timezone@0.1.0 version
-npm view @rdlabo/workers-mysql@0.1.0 version
-npm view @rdlabo/workers-hono-kit@0.12.0 version
-# In a fresh consumer directory:
-npm install @rdlabo/workers-timezone@0.1.0 @rdlabo/workers-mysql@0.1.0 @rdlabo/workers-hono-kit@0.12.0 drizzle-orm
+npm install @rdlabo/workers-timezone@0.1.0 @rdlabo/workers-mysql@0.1.0 "$RELEASE_DIR/rdlabo-workers-hono-kit-0.12.0.tgz" drizzle-orm
 npm install -D @types/node@20
 ```
 
@@ -104,6 +102,8 @@ by merging this PR.
 Only after package verification, all three Trusted Publishers, and these repository protections are
 in place, enable GitHub repository Actions variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`.
 CI uses OIDC and generates provenance; no npm token secret is needed.
+Enabling the variable does not itself start a release. After merging the reviewed changes, a
+`v0.12.0` tag triggers the kit release; future eligible merge/PR candidate events can publish betas.
 
 ## Subsequent releases
 

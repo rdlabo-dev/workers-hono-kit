@@ -387,7 +387,7 @@ jobs:
 
   publish-candidate:
     needs: authorize-candidate
-    # Enable only after the owner's initial publishes and per-package OIDC setup.
+    # The two new workspaces are bootstrapped locally; keep this gate until OIDC/protections are ready.
     if: >-
       needs.authorize-candidate.outputs.allowed == 'true' &&
       vars.WORKSPACE_NPM_PUBLISH_ENABLED == 'true'
