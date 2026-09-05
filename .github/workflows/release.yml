@@ -95,7 +95,7 @@ jobs:
         env:
           TAG_VERSION: ${{ steps.tag_version.outputs.version }}
         run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PACKAGE_VERSION=$(node -p "require('./packages/hono-kit/package.json').version")
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
             echo "::error::Package version $PACKAGE_VERSION does not match release tag $TAG_VERSION"
             exit 1
@@ -105,7 +105,7 @@ jobs:
         run: npm run typecheck
 
       - name: Verify synchronized release versions
-        run: node scripts/sync-release-versions.mjs --check
+        run: node tooling/release/sync-release-versions.mjs --check
 
       - name: Lint
         run: npm run lint
@@ -132,13 +132,13 @@ jobs:
           RELEASE_VERSION: ${{ steps.tag_version.outputs.version }}
         run: |
           mkdir -p "$RUNNER_TEMP/npm-release"
-          npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destination "$RUNNER_TEMP/npm-release"
+          npm pack --ignore-scripts --workspaces --pack-destination "$RUNNER_TEMP/npm-release"
           if [[ "$RELEASE_VERSION" == *-* ]]; then
             RELEASE_TAG=next
           else
             RELEASE_TAG=latest
           fi
-          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-release" --manifests . --tag "$RELEASE_TAG" --publish
+          node tooling/release/publish-packages.mjs --directory "$RUNNER_TEMP/npm-release" --manifests . --tag "$RELEASE_TAG" --publish
 
   authorize-candidate:
     if: >-
@@ -178,9 +178,9 @@ jobs:
               '.github/workflows/package-candidate.yml',
               '.github/workflows/release.yml',
               '.github/workflows/validation.yml',
-              'scripts/publish-packages.mjs',
-              'scripts/version-package-candidate.mjs',
-              'scripts/sync-release-versions.mjs',
+              'tooling/release/publish-packages.mjs',
+              'tooling/release/version-package-candidate.mjs',
+              'tooling/release/sync-release-versions.mjs',
             ];
             const tryCreateComment = async (body) => {
               try {
@@ -199,11 +199,11 @@ jobs:
               const { data } = await github.rest.repos.getContent({
                 owner,
                 repo,
-                path: 'package.json',
+                path: 'packages/hono-kit/package.json',
                 ref,
               });
               if (Array.isArray(data) || data.type !== 'file' || !data.content) {
-                throw new Error(`package.json is not a file at ${ref}`);
+                throw new Error(`packages/hono-kit/package.json is not a file at ${ref}`);
               }
               const packageJson = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'));
               return {
@@ -499,11 +499,11 @@ jobs:
             const { data } = await github.rest.repos.getContent({
               owner,
               repo,
-              path: 'package.json',
+              path: 'packages/hono-kit/package.json',
               ref: trustedSha,
             });
             if (Array.isArray(data) || data.type !== 'file' || !data.content) {
-              core.setFailed('Trusted package.json could not be read.');
+              core.setFailed('Trusted packages/hono-kit/package.json could not be read.');
               return;
             }
             const packageJson = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8'));
@@ -580,7 +580,7 @@ jobs:
           PR_NUMBER: ${{ needs.authorize-candidate.outputs.pr-number }}
           HEAD_SHA: ${{ needs.authorize-candidate.outputs.head-sha }}
         run: |
-          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate" --manifests . --tag beta --suffix "beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}" --publish
+          node tooling/release/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate" --manifests . --tag beta --suffix "beta.pr${PR_NUMBER}.sha${HEAD_SHA:0:12}" --publish
 
   comment-candidate:
     needs: [authorize-candidate, publish-candidate]

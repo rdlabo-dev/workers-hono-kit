@@ -66,8 +66,8 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PR_NUMBER: ${{ steps.merge.outputs.pr-number }}
         run: |
-          mkdir -p "$RUNNER_TEMP/npm-manifests/packages/timezone" "$RUNNER_TEMP/npm-manifests/packages/mysql"
-          cp package.json "$RUNNER_TEMP/npm-manifests/package.json"
+          mkdir -p "$RUNNER_TEMP/npm-manifests/packages/timezone" "$RUNNER_TEMP/npm-manifests/packages/mysql" "$RUNNER_TEMP/npm-manifests/packages/hono-kit"
+          cp packages/hono-kit/package.json "$RUNNER_TEMP/npm-manifests/packages/hono-kit/package.json"
           cp packages/timezone/package.json "$RUNNER_TEMP/npm-manifests/packages/timezone/package.json"
           cp packages/mysql/package.json "$RUNNER_TEMP/npm-manifests/packages/mysql/package.json"
           if [ -n "$PR_NUMBER" ]; then
@@ -75,7 +75,7 @@ jobs:
           else
             SUFFIX="candidate.sha${HEAD_SHA:0:12}"
           fi
-          node scripts/version-package-candidate.mjs "$SUFFIX"
+          node tooling/release/version-package-candidate.mjs "$SUFFIX"
           npm install --package-lock-only --ignore-scripts
           echo "artifact=npm-candidate-${HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
@@ -94,14 +94,14 @@ jobs:
       - name: Pack candidate
         run: |
           mkdir -p "$RUNNER_TEMP/npm-candidate"
-          npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destination "$RUNNER_TEMP/npm-candidate"
+          npm pack --ignore-scripts --workspaces --pack-destination "$RUNNER_TEMP/npm-candidate"
 
       - name: Validate all candidate archives without publishing
         env:
           CANDIDATE_SUFFIX: ${{ steps.candidate.outputs.suffix }}
           CANDIDATE_TAG: ${{ steps.candidate.outputs.tag }}
         run: >-
-          node scripts/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate"
+          node tooling/release/publish-packages.mjs --directory "$RUNNER_TEMP/npm-candidate"
           --manifests "$RUNNER_TEMP/npm-manifests" --tag "$CANDIDATE_TAG" --suffix "$CANDIDATE_SUFFIX"
 
       - name: Upload immutable package artifact

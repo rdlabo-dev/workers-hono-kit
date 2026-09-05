@@ -30,6 +30,7 @@ function fixture({ suffix, versions = {} } = {}) {
   const directory = join(root, 'archives');
   mkdirSync(join(manifests, 'packages', 'timezone'), { recursive: true });
   mkdirSync(join(manifests, 'packages', 'mysql'), { recursive: true });
+  mkdirSync(join(manifests, 'packages', 'hono-kit'), { recursive: true });
   mkdirSync(directory);
 
   const trusted = {
@@ -44,7 +45,7 @@ function fixture({ suffix, versions = {} } = {}) {
   };
   writeFileSync(join(manifests, 'packages/timezone/package.json'), JSON.stringify(trusted.timezone));
   writeFileSync(join(manifests, 'packages/mysql/package.json'), JSON.stringify(trusted.mysql));
-  writeFileSync(join(manifests, 'package.json'), JSON.stringify(trusted.kit));
+  writeFileSync(join(manifests, 'packages/hono-kit/package.json'), JSON.stringify(trusted.kit));
 
   const version = (trustedVersion) =>
     suffix === undefined ? trustedVersion : `${trustedVersion.split(/[+-]/, 1)[0]}-${suffix}`;

@@ -1,10 +1,22 @@
-# AGENTS.md — @rdlabo/workers-hono-kit
+# AGENTS.md — workers-hono-kit monorepo
 
-## What this package is
+## What this repository is
 
-Shared infrastructure toolkit for Hono + Cloudflare Workers APIs. Published to npm as `@rdlabo/workers-hono-kit`. All rdlabo/proschool/odss Hono services import from this package rather than duplicating infrastructure code.
+Private npm workspace that publishes shared infrastructure for Hono + Cloudflare Workers APIs.
+All public OSS packages live under `packages/`. Consuming rdlabo/proschool/odss Hono services import
+these packages rather than duplicating infrastructure code.
 
-## Entry points
+## Public packages
+
+| Package | Path | npm name |
+|---------|------|----------|
+| Hono kit | `packages/hono-kit` | `@rdlabo/workers-hono-kit` |
+| MySQL | `packages/mysql` | `@rdlabo/workers-mysql` |
+| Timezone | `packages/timezone` | `@rdlabo/workers-timezone` |
+
+Release tooling lives in `tooling/release/`. Publish order is timezone → mysql → hono-kit.
+
+## Kit entry points (`@rdlabo/workers-hono-kit`)
 
 | Subpath | Import path | Scope |
 |---------|-------------|-------|
@@ -15,11 +27,10 @@ Shared infrastructure toolkit for Hono + Cloudflare Workers APIs. Published to n
 | `./offline` | `@rdlabo/workers-hono-kit/offline` | テーブル非依存のREST/DB method converter・replica wire・clock helpers |
 | `./testing` | `@rdlabo/workers-hono-kit/testing` | Hono/application test helpers plus deprecated DB compatibility exports |
 
-The repository is an npm workspace. `packages/timezone` and `packages/mysql` are the canonical
-standalone implementations published as `@rdlabo/workers-timezone` and `@rdlabo/workers-mysql`.
+`packages/timezone` and `packages/mysql` are the canonical standalone implementations.
 Legacy kit subpaths must remain thin compatibility re-exports.
 
-The root entry point must remain compatible with `workerd` and must not load MySQL, Drizzle, or
+The kit root entry point must remain compatible with `workerd` and must not load MySQL, Drizzle, or
 Node-only migration modules. `@rdlabo/workers-mysql` owns its direct `mysql2` dependency. Drizzle is
 an optional peer isolated to its `/drizzle` and `/testing` entry points.
 
@@ -61,26 +72,28 @@ hono/
 
 ## Development commands
 
+From the repository root:
+
 ```bash
 npm install
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint
-npm test            # vitest
-npm run build       # tsc -p tsconfig.build.json → dist/
+npm run typecheck   # all workspaces
+npm run lint        # all workspaces
+npm test            # vitest across packages/*/src
+npm run build       # timezone → mysql → hono-kit
 ```
 
 ## Design principles
 
 - **Configuration-injected, not opinionated**: the kit provides building blocks that accept configuration (verifier instances, Drizzle instances, Sentry clients) rather than hard-coding policy. Domain logic, database schemas, and application-specific behavior belong in the consuming project.
-- **Workers-compatible root**: the root export does not transitively load MySQL, Drizzle, or Node-only migration code. Hono↔MySQL wiring is an explicit `/mysql` adapter.
+- **Workers-compatible root**: the kit root export does not transitively load MySQL, Drizzle, or Node-only migration code. Hono↔MySQL wiring is an explicit `/mysql` adapter.
 - **Driver ownership**: `@rdlabo/workers-mysql` owns `mysql2` as a direct dependency; consumers should not have to assemble an internal driver set manually.
 - **NestJS parity (error/validation bodies only)**: error handlers and validation responses still match NestJS byte-for-byte so existing API consumers see no change (their `message` shape is depended on by the fleet frontends). Parity is *not* maintained for ETag (`finalizeResponse` now uses `hono/etag`, not the Express `etag` format) or `HttpStatus` (standard IANA codes, NestJS-only members dropped).
 - **No ORM type identity coupling**: the MySQL package accepts the consumer's ORM instance and keeps `drizzle-orm` as a peer.
 
-## When modifying this package
+## When modifying this repository
 
 1. Run `npm run typecheck && npm run lint && npm test` before committing.
 2. Add MySQL exports to `packages/mysql`; kit `/db` and `/testing` contain compatibility exports only.
 3. Every public function and type must have a JSDoc comment.
 4. When adding a new feature, add tests in the same directory with `.spec.ts` extension.
-5. If a new peer dependency is introduced, add it to `peerDependencies` (and `peerDependenciesMeta` if optional) in `package.json`.
+5. If a new peer dependency is introduced, add it to `peerDependencies` (and `peerDependenciesMeta` if optional) in the relevant `packages/*/package.json`.

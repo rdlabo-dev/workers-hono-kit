@@ -53,8 +53,8 @@ npm test
 npm run test:release
 npm run test:package
 RELEASE_DIR=$(mktemp -d)
-npm pack --ignore-scripts --workspaces --include-workspace-root --pack-destination "$RELEASE_DIR"
-node scripts/publish-packages.mjs --directory "$RELEASE_DIR" --manifests . --tag latest
+npm pack --ignore-scripts --workspaces --pack-destination "$RELEASE_DIR"
+node tooling/release/publish-packages.mjs --directory "$RELEASE_DIR" --manifests . --tag latest
 ```
 
 The last command only validates and prints the plan: it does not publish or contact npm.
@@ -123,8 +123,9 @@ after tagging: the release tag already contains the complete version set.
 CI publishing requires the Trusted Publishing configuration above. Do not use `--ignore-scripts`
 when creating release versions: it bypasses synchronization and the tag workflow will reject the set.
 
-- A root `v<version>` tag must match the checked-in root package version. Stable versions publish
-  all three packages with `latest`; prerelease versions publish all three with `next`.
+- A root `v<version>` tag must match the synchronized versions on the private workspace root and all
+  three public packages under `packages/`. Stable versions publish all three packages with `latest`;
+  prerelease versions publish all three with `next`.
 - All three versions must match for tag releases. Retries skip already-published archives only on
   an exact integrity match; do not change an archive under an existing version.
 - `/beta` on a ready PR requires an owner/maintainer and successful Validation + Package Candidate
@@ -140,7 +141,7 @@ when creating release versions: it bypasses synchronization and the tag workflow
 
 ## Local development / linking
 
-If you consume this package via a local path (e.g. `"@rdlabo/workers-hono-kit": "../../hono-kit"`) rather than from npm, TypeScript and esbuild resolve the package's bare imports from _its own_ `node_modules`, which can create a second `zod` instance. That breaks types where your zod-inferred values flow into other libraries (e.g. Drizzle inserts). Dedupe with tsconfig `paths`:
+If you consume this package via a local path (e.g. `"@rdlabo/workers-hono-kit": "../../workers-hono-kit/packages/hono-kit"`) rather than from npm, TypeScript and esbuild resolve the package's bare imports from _its own_ `node_modules`, which can create a second `zod` instance. That breaks types where your zod-inferred values flow into other libraries (e.g. Drizzle inserts). Dedupe with tsconfig `paths`:
 
 ```jsonc
 {
