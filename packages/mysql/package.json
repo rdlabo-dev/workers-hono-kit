@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "docs"
   ],
   "bin": {
     "workers-mysql-db-baseline": "./bin/db-baseline.mjs"

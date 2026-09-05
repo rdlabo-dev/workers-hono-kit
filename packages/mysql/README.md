@@ -47,6 +47,9 @@ these global declarations to the application's TypeScript compiler under pnpm.
 
 ## Runtime
 
+Create the database inside each Worker invocation. In this fragment, `env` contains the application's
+Hyperdrive bindings and `schema` is its own Drizzle schema:
+
 ```ts
 import { createHyperdriveDatabase } from '@rdlabo/workers-mysql';
 import { DRIZZLE_ORM_OPTIONS } from '@rdlabo/workers-mysql/drizzle';
@@ -77,20 +80,17 @@ This adapter is available from Hono kit `0.12.0`. Install both packages:
 npm install @rdlabo/workers-mysql @rdlabo/workers-hono-kit
 ```
 
-See [Development](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/development) when testing
-the complete three-package candidate graph.
+## Documentation
+
+- [Runtime](docs/runtime.md) — request lifetime, primary/replica reads, and retry safety.
+- [Drizzle and dates](docs/drizzle.md) — schema ownership, optional peer, and fixed-JST storage.
+- [Migrations and testing](docs/tooling.md) — Node.js tooling and destructive test helpers.
+- [API](docs/api.md) — public exports by entry point.
+- [Migration](docs/migration.md) — kit compatibility imports.
+
+These guides describe this source revision. Use the matching release tag for an installed version.
 
 ## Migrating from workers-hono-kit
 
-This boundary is a breaking change in version `0.12.0` of the kit:
-
-| Current import                                          | Replacement                                       |
-| ------------------------------------------------------- | ------------------------------------------------- |
-| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                  |
-| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                           |
-| DB helpers from `@rdlabo/workers-hono-kit/db`           | This package's root, `/drizzle`, or `/migrations` |
-| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                   |
-
-The old `/db` and DB-related `/testing` exports remain temporarily as deprecated compatibility
-paths. See the [data-layer guide](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
-for details.
+Kit `0.12.0` changes the import boundaries. Its old `/db` and DB-related `/testing` exports remain
+temporarily as deprecated compatibility paths. See [Migration](docs/migration.md) for the import map.

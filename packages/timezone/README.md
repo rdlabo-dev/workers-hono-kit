@@ -4,6 +4,8 @@ Timezone-aware calendar and wall-clock utilities for Cloudflare Workers. Workers
 instants; this package lets an application select an IANA timezone once per isolate and handles DST
 when converting between instants and local dates.
 
+No Hono, database, or Node.js compatibility dependency is required.
+
 ## Install
 
 ```sh
@@ -24,31 +26,18 @@ localDateTimeToInstant('2026-07-01', '09:00:00');
 // 2026-07-01T13:00:00.000Z
 ```
 
-`initializeTimezone` is idempotent for the same timezone and rejects attempts to switch the same
-module instance to another timezone. Call it during module evaluation with deployment-wide static
-configuration—not with request-, tenant-, or user-specific data. Every conversion function also
-accepts an explicit timezone override without changing the configured default. For compatibility
-with `@rdlabo/workers-hono-kit/business-time`, the uninitialized default is `Asia/Tokyo`.
+Initialize once during module evaluation, never per request or tenant. The uninitialized default
+is `Asia/Tokyo`; pass an explicit timezone to conversions for user-specific behavior.
 
-At a DST overlap, conversion selects the earlier occurrence. Local wall clocks skipped by a DST
-transition are rejected with `RangeError`. `startOfDay` and `endOfDay` are boundary operations: they
-return the first and final representable whole seconds of the local calendar day, including days
-whose midnight is skipped or whose final wall clock is repeated. A fully skipped calendar date is
-rejected with `RangeError`.
+## Documentation
 
-`TIME_ZONES` is a typed constant containing common choices for editor autocomplete. Any IANA ID
-supported by the Workers `Intl` runtime can also be supplied as a string and is validated at runtime.
+- [Timezones and calendar dates](docs/timezones.md) — configuration, DST, and database boundaries.
+- [API](docs/api.md) — conversions, calendar operations, types, and compatibility names.
+- [Migration](docs/migration.md) — moving from the kit and behavior changes.
 
-The package also exports the existing `workers-hono-kit/business-time` function names as
-compatibility aliases, including `toBusinessDateTime`, `businessDateTimeInstant`, `today`,
-`normalizeBusinessDate`, `formatBusinessDateTime`, and `ageOnBusinessDate`.
+These guides describe this source revision. Use the matching release tag for an installed version.
 
-Compatibility covers API names and keeps `Asia/Tokyo` as the default. Results now follow IANA
-historical offsets instead of the legacy fixed `+09:00`, so historical dates can change when
-Tokyo's offset was not `+09:00`. Invalid calendar values are also handled strictly:
-`normalizeBusinessDate` returns `null`, and date-time construction or parsing throws `RangeError`
-rather than accepting JavaScript `Date` rollover. Treat both behavior changes as breaking during
-migration.
+<!-- rdlabo-docs-omit -->
 
 ## Development
 
@@ -62,3 +51,5 @@ npm run build
 ## License
 
 MIT
+
+<!-- /rdlabo-docs-omit -->

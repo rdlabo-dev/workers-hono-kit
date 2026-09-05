@@ -15,7 +15,8 @@
     "directory": "packages/timezone"
   },
   "files": [
-    "dist"
+    "dist",
+    "docs"
   ],
   "exports": {
     ".": {
