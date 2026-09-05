@@ -52,7 +52,7 @@ jobs:
           reactions: eyes
 
   release:
-    if: github.event_name == 'push' && vars.WORKSPACE_NPM_PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'push'
     concurrency:
       group: npm-workspace-publish
       cancel-in-progress: false
@@ -397,10 +397,7 @@ jobs:
 
   publish-candidate:
     needs: authorize-candidate
-    # The two new workspaces are bootstrapped locally; keep this gate until OIDC/protections are ready.
-    if: >-
-      needs.authorize-candidate.outputs.allowed == 'true' &&
-      vars.WORKSPACE_NPM_PUBLISH_ENABLED == 'true'
+    if: needs.authorize-candidate.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: npm-workspace-publish

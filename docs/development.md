@@ -30,10 +30,8 @@ Install all three when testing the complete package boundary:
 npm install drizzle-orm ai-gateway-provider ./rdlabo-workers-mysql-*.tgz ./rdlabo-workers-timezone-*.tgz ./rdlabo-workers-hono-kit-*.tgz
 ```
 
-All CI publishing requires the repository variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`. Keep it
-unset or false until the kit's existing Trusted Publisher and the repository protection settings
-below are verified. This is an ongoing CI publication switch,
-not a requirement to publish every package locally.
+No publication opt-in variable is required. Release tags trigger publication; candidate publication
+requires the authorization and successful source-run checks described below.
 The publisher validates all three archives before any write, then publishes timezone, MySQL, and
 the kit in that order. A retry skips a version only when the registry's SHA-512 integrity matches
 the local tarball; different content under an existing version fails and requires a version bump.
@@ -41,7 +39,7 @@ the local tarball; different content under an existing version fails and require
 ## Release bundle verification
 
 Only the two new packages required an initial owner publish. Do not repeat their `0.1.0` publishes
-or publish Hono kit `0.12.0` locally just to enable CI. The kit's minor bump covers breaking import
+or publish Hono kit `0.12.0` locally as another bootstrap step. The kit's minor bump covers breaking import
 and timezone behavior changes and remains a normal release.
 
 Use Node.js 24 with a current npm CLI. From a clean checkout at the reviewed commit, verify the
@@ -67,14 +65,14 @@ npm view @rdlabo/workers-timezone@0.1.0 version --registry https://registry.npmj
 npm view @rdlabo/workers-mysql@0.1.0 version --registry https://registry.npmjs.org/
 ```
 
-If either lookup fails, resolve registry visibility before enabling CI. Keep the published workspace
+If either lookup fails, resolve registry visibility before releasing. Keep the published workspace
 contents unchanged: the tag workflow compares archive integrity and skips identical `0.1.0` versions
 when retrying a release. Changes to packaged contents require a new synchronized release version.
 
-## Trusted Publishing and CI enablement
+## Trusted Publishing and repository protection
 
 The two new packages already have the following saved configuration. Do not create duplicate
-connections. Verify the existing Hono kit connection against these values before enabling CI:
+connections. Verify the existing Hono kit connection against these values before releasing:
 
 | Field                    | Value                                                        |
 | ------------------------ | ------------------------------------------------------------ |
@@ -87,7 +85,7 @@ connections. Verify the existing Hono kit connection against these values before
 The workspace connections were configured on npm after the owner published the packages; they
 are external settings, not created by merging this PR.
 See [npm's Trusted Publishing guide](https://docs.npmjs.com/trusted-publishers/).
-Before enabling CI, test the two registry packages together with the locally packed, not-yet-published
+Before releasing, test the two registry packages together with the locally packed, not-yet-published
 kit in a fresh consumer directory (using `RELEASE_DIR` from above):
 
 ```sh
@@ -95,18 +93,16 @@ npm install @rdlabo/workers-timezone@0.1.0 @rdlabo/workers-mysql@0.1.0 "$RELEASE
 npm install -D @types/node@20
 ```
 
-Before enabling CI, create an **active tag ruleset** for `v*` in GitHub repository Settings → Rules:
+Before releasing, create an **active tag ruleset** for `v*` in GitHub repository Settings → Rules:
 restrict tag creation, updates, and deletion; grant bypass only to the designated release maintainer.
 That maintainer must tag only reviewed commits on `main`. The tag workflow runs code from the tag,
 so unrestricted tag creation would bypass the PR review boundary. Keep the default branch protected
 and require review for workflow/publisher changes as well. These repository settings are not applied
 by merging this PR.
 
-Only after package verification, all three Trusted Publishers, and these repository protections are
-in place, enable GitHub repository Actions variable `WORKSPACE_NPM_PUBLISH_ENABLED=true`.
-CI uses OIDC and generates provenance; no npm token secret is needed.
-Enabling the variable does not itself start a release. After merging the reviewed changes,
-`npm run release` creates the next release tag; future eligible merge/PR candidate events can publish betas.
+CI uses OIDC and generates provenance; no npm token secret or publication opt-in variable is needed.
+After merging the reviewed changes, `npm run release` creates the next release tag.
+Eligible merge/PR candidate events can also publish betas after their authorization checks pass.
 
 ## Subsequent releases
 
@@ -124,8 +120,7 @@ The tag workflow verifies synchronization, tests the packages, and publishes all
 order. Unlike the Stripe repository's CI-side version update, no additional version commit is needed
 after tagging: the release tag already contains the complete version set.
 
-CI publishing still requires the one-time setup and `WORKSPACE_NPM_PUBLISH_ENABLED=true` above.
-An unset/false variable skips publishing even when a release tag is pushed. Do not use `--ignore-scripts`
+CI publishing requires the Trusted Publishing configuration above. Do not use `--ignore-scripts`
 when creating release versions: it bypasses synchronization and the tag workflow will reject the set.
 
 - A root `v<version>` tag must match the checked-in root package version. Stable versions publish
