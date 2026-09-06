@@ -5,8 +5,8 @@ title: Runtime
 # Runtime
 
 Enable `nodejs_compat` in your Worker and install the dependencies described in the
-[README](../README.md). `mysql2` is included; the package does not depend on Hono.
-The application supplies its Hyperdrive bindings, schema, and ORM factory.
+[README](../README.md). `mysql2` is included. The application supplies its Hyperdrive bindings,
+schema, and ORM factory.
 
 ## Invocation lifetime
 

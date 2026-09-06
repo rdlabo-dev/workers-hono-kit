@@ -2,11 +2,6 @@
 
 Test helpers, queue batching, operational CLIs, and trust boundaries for Hono Workers applications.
 
-- [HTTP and Authentication](./http-auth.md)
-- [Data Layer](./data-layer.md)
-- [Realtime and Offline](./realtime-offline.md)
-- [API reference](./api.md)
-
 ## Testing entry point
 
 `@rdlabo/workers-hono-kit/testing` is never loaded by production code. Its DB helpers are deprecated

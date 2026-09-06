@@ -3,11 +3,6 @@
 Standalone MySQL / Hyperdrive access for Workers, plus the thin Hono container adapter. Fixed
 `+09:00` storage helpers are independent of IANA display timezones.
 
-- [HTTP and Authentication](./http-auth.md)
-- [Realtime and Offline](./realtime-offline.md)
-- [Testing and Operations](./testing-operations.md)
-- [API reference](./api.md)
-
 Import database helpers from `@rdlabo/workers-mysql`. The package installs `mysql2` directly. Add
 `drizzle-orm` only when using the `/drizzle` or `/testing` entry point. The old
 `@rdlabo/workers-hono-kit/db` path is a deprecated compatibility re-export.
@@ -26,27 +21,11 @@ npm install -D @types/node@20
 
 For candidate tarball installation, see [Development](./development.md).
 
-## Migrating from workers-hono-kit
-
-The package boundary is a breaking change in `0.12.0`. Update these imports before
-upgrading:
-
-| Current import                                          | Replacement                                           |
-| ------------------------------------------------------- | ----------------------------------------------------- |
-| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                      |
-| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                               |
-| DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
-| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
-
-The old `/db` and DB-related `/testing` exports remain available for backward compatibility.
-Their individual functions and types carry `@deprecated` notices pointing to the standalone
-package. No removal release is scheduled. The kit-owned `/mysql` adapter is not deprecated.
-Because `/testing` statically re-exports DB helpers, all kit `/testing` consumers must install the
-MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as Firebase or KV fakes.
-
 ## Hyperdrive database
 
-`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings. `read()` uses the replica query runner; `query()` provides an explicit raw primary SELECT for read-after-write consistency; writes and transactions use the primary Drizzle instance. `readTransaction()` runs Drizzle and raw reads against one primary repeatable-read snapshot. Read transactions are serialized on one separately cached connection so their boundaries cannot mix with each other or with ordinary primary operations. After a fatal mysql2 connection error, a single read or the complete read-only transaction opens a fresh connection and repeats at most once. Writes and write transactions are not repeated because their commit state may be ambiguous. Workers owns connection cleanup at invocation end.
+`createHyperdriveDatabase()` lazily opens primary and replica connections from Hyperdrive bindings.
+For read/write paths, retry boundaries, and invocation lifetime, see
+[Workers MySQL Runtime](https://docs.rdlabo.dev/projects/workers-mysql/docs/runtime).
 
 ```ts
 import { createHyperdriveDatabase } from '@rdlabo/workers-mysql';
@@ -109,6 +88,24 @@ toBusinessDateTime(new Date('2026-07-05T21:00:00Z'));
 addBusinessDays('2026-07-06', 3);
 // '2026-07-09'
 ```
+
+## Migrating from workers-hono-kit
+
+The package boundary is a breaking change in `0.12.0`. Update these imports before
+upgrading:
+
+| Current import                                          | Replacement                                           |
+| ------------------------------------------------------- | ----------------------------------------------------- |
+| `createContainerRuntime` from the kit root              | `@rdlabo/workers-hono-kit/mysql`                      |
+| `retryWhenDeadlock` from the kit root                   | `@rdlabo/workers-mysql`                               |
+| DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
+| DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
+
+The old `/db` and DB-related `/testing` exports remain available for backward compatibility.
+Their individual functions and types carry `@deprecated` notices pointing to the standalone
+package. No removal release is scheduled. The kit-owned `/mysql` adapter is not deprecated.
+Because `/testing` statically re-exports DB helpers, all kit `/testing` consumers must install the
+MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as Firebase or KV fakes.
 
 ## Next step
 

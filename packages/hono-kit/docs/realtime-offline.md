@@ -3,11 +3,6 @@
 Durable Object WebSocket helpers and table-agnostic offline replica contracts. Product schemas,
 Zod shapes, and domain policy stay in the application.
 
-- [HTTP and Authentication](./http-auth.md)
-- [Data Layer](./data-layer.md)
-- [Testing and Operations](./testing-operations.md)
-- [API reference](./api.md)
-
 ## Durable Object realtime
 
 The root and `/realtime` entry points expose the same focused realtime primitives:

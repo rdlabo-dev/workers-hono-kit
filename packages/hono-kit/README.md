@@ -2,30 +2,9 @@
 
 Shared Hono building blocks for Cloudflare Workers APIs: weak ETags, NestJS-shaped validation and
 error bodies, Firebase auth middleware, AWS helpers, AI Gateway wiring, Stripe, KV, queues,
-realtime, and offline contracts. Domain logic and database schemas stay in the consuming
-application.
-
-## Start with one visible result
-
-Use this kit when a Hono API needs shared HTTP behavior, then add authentication, queues, or other helpers as needed. Your business rules and database schema stay in your application.
+realtime, and offline contracts.
 
 [Try a Hono API locally](./docs/quickstart.md): send a health request, inspect its weak ETag, and see the missing-route JSON response. No Cloudflare account or open port is needed for the first exercise.
-
-## Choose an entry point
-
-| Import                                   | Responsibility                                                       |
-| ---------------------------------------- | -------------------------------------------------------------------- |
-| `@rdlabo/workers-hono-kit`               | HTTP, auth, Firebase, AWS, AI, Stripe, KV, and queue primitives      |
-| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for `@rdlabo/workers-mysql`                   |
-| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts   |
-| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                           |
-| `@rdlabo/workers-hono-kit/testing`       | Auth helpers, fakes, Stripe fixtures, and compatibility test exports |
-| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility path for `@rdlabo/workers-mysql`            |
-| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility path for `@rdlabo/workers-timezone`         |
-
-The root entry point does not load MySQL, Drizzle, or Node-only migration modules. MySQL consumers
-install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
-adapter.
 
 ## Install
 
@@ -77,6 +56,22 @@ app.get('/health', (c) => c.json({ ok: true }));
 
 export default app;
 ```
+
+## Choose an entry point
+
+| Import                                   | Responsibility                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| `@rdlabo/workers-hono-kit`               | HTTP, auth, Firebase, AWS, AI, Stripe, KV, and queue primitives      |
+| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for `@rdlabo/workers-mysql`                   |
+| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts   |
+| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                           |
+| `@rdlabo/workers-hono-kit/testing`       | Auth helpers, fakes, Stripe fixtures, and compatibility test exports |
+| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility path for `@rdlabo/workers-mysql`            |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility path for `@rdlabo/workers-timezone`         |
+
+The root entry point does not load MySQL, Drizzle, or Node-only migration modules. MySQL consumers
+install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
+adapter.
 
 ### Compatibility import deprecations
 

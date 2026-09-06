@@ -4,8 +4,6 @@ title: Run your first MySQL query
 
 Read an actual MySQL result through the package without creating tables or an application schema. Then see exactly what changes when moving from a local Node.js connection to a Workers Hyperdrive binding.
 
-IANA display dates belong to [Workers Timezone + ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart), independently of the database fixed `+09:00` storage helpers.
-
 ## 1. Prepare the local exercise
 
 You need Node.js 24, npm, Docker, and an unused local port 3307. These commands create a disposable local database. The password below is only for this localhost demonstration.

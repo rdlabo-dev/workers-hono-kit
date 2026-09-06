@@ -3,11 +3,6 @@
 Validation, Firebase authentication, shared NestJS-shaped error bodies, and response finalization
 for Hono Workers APIs.
 
-- [Data Layer](./data-layer.md)
-- [Realtime and Offline](./realtime-offline.md)
-- [Testing and Operations](./testing-operations.md)
-- [API reference](./api.md)
-
 ## Validation
 
 `validate(target, schema, options?)` adapts a Zod schema to Hono and returns a NestJS `ValidationPipe`-shaped `400` response. Use `createValidate({ sentry })` to bind optional reporting once.

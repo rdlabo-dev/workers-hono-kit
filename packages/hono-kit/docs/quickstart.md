@@ -4,17 +4,6 @@ title: Try a Hono API locally
 
 Give a Hono API consistent HTTP behavior: a health response with a weak ETag and a predictable JSON response for missing routes. You will see both without opening a port or creating a Cloudflare account.
 
-## Choose the right package
-
-| You need                                    | Start with                                                                                     |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Shared Hono HTTP, auth, or queue behavior   | `@rdlabo/workers-hono-kit`                                                                     |
-| MySQL access, with or without Hono          | [Workers MySQL](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart)                |
-| Timezone conversions and checks on new code | [Workers Timezone + ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart) |
-| Code conventions during development         | [ESLint Plugin Rules](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/quickstart)    |
-
-The kit supplies reusable infrastructure. Your routes, domain rules, credentials, and database schema remain in your application. Adopt one helper first; you do not need to adopt every entry point.
-
 ## 1. Create a small project
 
 Use Node.js 24 and npm for this exercise. The commands pin the documented kit release. npm installs its required peers; package managers configured to omit peers must follow the [installation requirements](../README.md).
@@ -66,6 +55,17 @@ You have checked the HTTP behavior added by the kit. This exercise does not prov
 
 ## 3. Move into your application
 
-Keep the middleware and route registrations, remove the demonstration requests, and export `app` as your Worker handler. Continue with [HTTP and authentication](./http-auth.md). Add the [MySQL adapter](./data-layer.md) only when the application needs a database; use [timezone utilities and ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart) together when handling local calendar dates.
+Keep the middleware and route registrations, remove the demonstration requests, and export `app` as your Worker handler. Continue with [HTTP and authentication](./http-auth.md). Add the [MySQL adapter](./data-layer.md) only when the application needs a database.
 
 Existing kit users should check [the 0.12 import migration](./data-layer.md) before upgrading. The old `/db` and `/business-time` paths are compatibility exports; new integrations use the standalone packages.
+
+## Next steps
+
+| You need                                    | Start with                                                                                     |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Shared Hono HTTP, auth, or queue behavior   | `@rdlabo/workers-hono-kit`                                                                     |
+| MySQL access, with or without Hono          | [Workers MySQL](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart)                |
+| Timezone conversions and checks on new code | [Workers Timezone + ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart) |
+| Code conventions during development         | [ESLint Plugin Rules](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/quickstart)    |
+
+The kit supplies reusable infrastructure. Your routes, domain rules, credentials, and database schema remain in your application. Adopt one helper first; you do not need to adopt every entry point.

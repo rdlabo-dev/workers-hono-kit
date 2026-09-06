@@ -11,19 +11,6 @@ The Worker must enable Node.js compatibility because `mysql2` uses Node.js netwo
 compatibility_flags = ["nodejs_compat"]
 ```
 
-## Start with a real query
-
-[Run your first MySQL query](./docs/quickstart.md): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
-
-## Choose an entry point
-
-| Import                             | Responsibility                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------- |
-| `@rdlabo/workers-mysql`            | Workers MySQL and Hyperdrive runtime, retry, write-result, and JST wire helpers |
-| `@rdlabo/workers-mysql/drizzle`    | Drizzle configuration and JST column helpers                                    |
-| `@rdlabo/workers-mysql/migrations` | Node.js migration and brownfield baseline helpers                               |
-| `@rdlabo/workers-mysql/testing`    | Local MySQL/Drizzle test database and fakes                                     |
-
 ## Install
 
 ```bash
@@ -51,6 +38,19 @@ pnpm add -D @types/node@20
 Use the matching supported major for your tooling. Automatic peer installation alone may not expose
 these global declarations to the application's TypeScript compiler under pnpm.
 
+## Start with a real query
+
+[Run your first MySQL query](./docs/quickstart.md): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
+
+## Choose an entry point
+
+| Import                             | Responsibility                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `@rdlabo/workers-mysql`            | Workers MySQL and Hyperdrive runtime, retry, write-result, and JST wire helpers |
+| `@rdlabo/workers-mysql/drizzle`    | Drizzle configuration and JST column helpers                                    |
+| `@rdlabo/workers-mysql/migrations` | Node.js migration and brownfield baseline helpers                               |
+| `@rdlabo/workers-mysql/testing`    | Local MySQL/Drizzle test database and fakes                                     |
+
 ## Quick start
 
 Create the database inside each Worker invocation. In this fragment, `env` contains the application's
@@ -76,8 +76,7 @@ from [`@rdlabo/workers-timezone`](https://docs.rdlabo.dev/projects/workers-timez
 
 ## Hono integration
 
-Hono middleware remains an adapter in `@rdlabo/workers-hono-kit/mysql`; the database package itself
-does not depend on Hono.
+Hono request containers use the adapter in `@rdlabo/workers-hono-kit/mysql`:
 
 ```ts
 import { createContainerRuntime } from '@rdlabo/workers-hono-kit/mysql';
