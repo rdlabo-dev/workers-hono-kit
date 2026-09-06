@@ -39,10 +39,10 @@ const policy = createRolePolicy<Role, Permission>({
 The resulting `RolePolicy` has four pure checks:
 
 ```ts
-policy.hasPermission('member', 'resource.write');        // true
-policy.canAssignRole('admin', 'member');                 // true
-policy.canManageRole('owner', 'admin');                  // true
-policy.canChangeRole('owner', 'admin', 'member');        // true
+policy.hasPermission('member', 'resource.write'); // true
+policy.canAssignRole('admin', 'member'); // true
+policy.canManageRole('owner', 'admin'); // true
+policy.canChangeRole('owner', 'admin', 'member'); // true
 ```
 
 `canChangeRole(actor, current, next)` is a combination: the actor must be able to manage the subject's current role and also be allowed to assign the next role. Keeping role lookup and policy checks separate means the same policy can be reused no matter where roles are stored.

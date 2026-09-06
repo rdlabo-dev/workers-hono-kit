@@ -4,23 +4,19 @@ Table-agnostic building blocks for product-owned REST ↔ DB method converters a
 
 This is an additive subpath: existing root and subpath exports are unchanged. Consumers can migrate converter internals independently without changing REST payloads, schema hashes, or persisted SQLite rows. For an `AUTO_INCREMENT` table, omit `id` from a create method's table scheme; keep the client-generated UUID in `local_id` and keep `server_id` null until the server confirms its id.
 
-| Export | Description |
-| --- | --- |
-| `defineRestDbMethodConverter(converter)` | Type a product-owned, pure `MethodScheme ↔ TableScheme` converter without hiding HTTP or persistence side effects. |
-| `RestDbMethodConverter` | Product-owned converter contract. Select and insert bundles may differ; every represented table and column remains required. |
-| `CompleteRestDbTableScheme` | Compile-time lock requiring every represented table key and row column. |
-| `toReplicaIsoDatetime(value)` | `Date` / datetime string → canonical UTC ISO-8601 wire value. |
-| `toReplicaDateOnly(value)` | `Date` / date string / `null` → canonical `YYYY-MM-DD` / `null`. |
-| `replicaTimestampMs(value)` | Replica datetime → epoch milliseconds for legacy DTOs. |
-| `toTinyIntFlag(value)` / `fromTinyIntFlag(value)` | Boolean-like value ↔ numeric tinyint flag. |
-| `replicaNowIso(clock?)` | Injectable wall clock → canonical UTC ISO-8601 wire value. |
+| Export                                            | Description                                                                                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `defineRestDbMethodConverter(converter)`          | Type a product-owned, pure `MethodScheme ↔ TableScheme` converter without hiding HTTP or persistence side effects.           |
+| `RestDbMethodConverter`                           | Product-owned converter contract. Select and insert bundles may differ; every represented table and column remains required. |
+| `CompleteRestDbTableScheme`                       | Compile-time lock requiring every represented table key and row column.                                                      |
+| `toReplicaIsoDatetime(value)`                     | `Date` / datetime string → canonical UTC ISO-8601 wire value.                                                                |
+| `toReplicaDateOnly(value)`                        | `Date` / date string / `null` → canonical `YYYY-MM-DD` / `null`.                                                             |
+| `replicaTimestampMs(value)`                       | Replica datetime → epoch milliseconds for legacy DTOs.                                                                       |
+| `toTinyIntFlag(value)` / `fromTinyIntFlag(value)` | Boolean-like value ↔ numeric tinyint flag.                                                                                   |
+| `replicaNowIso(clock?)`                           | Injectable wall clock → canonical UTC ISO-8601 wire value.                                                                   |
 
 ```ts
-import {
-  defineRestDbMethodConverter,
-  replicaNowIso,
-  toReplicaIsoDatetime,
-} from '@rdlabo/workers-hono-kit/offline';
+import { defineRestDbMethodConverter, replicaNowIso, toReplicaIsoDatetime } from '@rdlabo/workers-hono-kit/offline';
 
 type Tables = {
   foods: FoodRow[];

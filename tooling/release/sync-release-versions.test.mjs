@@ -6,19 +6,31 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 const source = new URL('./sync-release-versions.mjs', import.meta.url);
-const files = ['package.json', 'packages/timezone/package.json', 'packages/mysql/package.json', 'package-lock.json'];
+const files = [
+  'package.json',
+  'packages/hono-kit/package.json',
+  'packages/timezone/package.json',
+  'packages/mysql/package.json',
+  'package-lock.json',
+];
 
 function fixture(t) {
   const cwd = mkdtempSync(join(tmpdir(), 'workers-release-version-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  for (const dir of ['scripts', 'packages/timezone', 'packages/mysql']) mkdirSync(join(cwd, dir), { recursive: true });
-  copyFileSync(source, join(cwd, 'scripts/sync-release-versions.mjs'));
+  for (const dir of ['tooling/release', 'packages/hono-kit', 'packages/timezone', 'packages/mysql']) {
+    mkdirSync(join(cwd, dir), { recursive: true });
+  }
+  copyFileSync(source, join(cwd, 'tooling/release/sync-release-versions.mjs'));
   const root = {
-    name: '@rdlabo/workers-hono-kit',
+    name: 'workers-hono-kit',
     version: '0.12.0',
     private: true,
     workspaces: ['packages/*'],
-    scripts: { version: 'node scripts/sync-release-versions.mjs' },
+    scripts: { version: 'node tooling/release/sync-release-versions.mjs' },
+  };
+  const kit = {
+    name: '@rdlabo/workers-hono-kit',
+    version: '0.12.0',
     peerDependencies: { '@rdlabo/workers-timezone': '^0.1.0', '@rdlabo/workers-mysql': '^0.1.0' },
   };
   const timezone = { name: '@rdlabo/workers-timezone', version: '0.1.0' };
@@ -34,13 +46,15 @@ function fixture(t) {
     requires: true,
     packages: {
       '': structuredClone(root),
+      'packages/hono-kit': structuredClone(kit),
       'packages/timezone': structuredClone(timezone),
       'packages/mysql': structuredClone(mysql),
+      'node_modules/@rdlabo/workers-hono-kit': { resolved: 'packages/hono-kit', link: true },
       'node_modules/@rdlabo/workers-timezone': { resolved: 'packages/timezone', link: true },
       'node_modules/@rdlabo/workers-mysql': { resolved: 'packages/mysql', link: true },
     },
   };
-  for (const [i, value] of [root, timezone, mysql, lock].entries())
+  for (const [i, value] of [root, kit, timezone, mysql, lock].entries())
     writeFileSync(join(cwd, files[i]), `${JSON.stringify(value, null, 2)}\n`);
   const run = (cmd, args) =>
     execFileSync(cmd, args, {
@@ -70,13 +84,13 @@ for (const version of ['0.12.1', '0.13.0-rc.1']) {
   test(`npm version ${version} commits and tags the entire package set`, (t) => {
     const { cwd, run } = fixture(t);
     run('npm', ['version', version, '--no-audit', '--no-fund']);
-    run('node', ['scripts/sync-release-versions.mjs', '--check']);
+    run('node', ['tooling/release/sync-release-versions.mjs', '--check']);
     for (const file of files) {
       const tagged = JSON.parse(run('git', ['show', `v${version}:${file}`]));
       assert.equal(tagged.version, version);
     }
-    const root = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
-    assert.equal(root.peerDependencies['@rdlabo/workers-mysql'], `^${version}`);
+    const kit = JSON.parse(readFileSync(join(cwd, 'packages/hono-kit/package.json'), 'utf8'));
+    assert.equal(kit.peerDependencies['@rdlabo/workers-mysql'], `^${version}`);
     const mysql = JSON.parse(readFileSync(join(cwd, 'packages/mysql/package.json'), 'utf8'));
     assert.equal(mysql.devDependencies['@rdlabo/workers-timezone'], `^${version}`);
     assert.equal(run('git', ['status', '--porcelain']).trim(), '');
@@ -89,7 +103,7 @@ for (const version of ['0.12.1', '0.13.0-rc.1']) {
 test('check mode rejects unsynchronized versions without writing or tagging', (t) => {
   const { cwd, run } = fixture(t);
   const before = files.map((file) => readFileSync(join(cwd, file), 'utf8'));
-  assert.throws(() => run('node', ['scripts/sync-release-versions.mjs', '--check']), /not aligned/);
+  assert.throws(() => run('node', ['tooling/release/sync-release-versions.mjs', '--check']), /not aligned/);
   assert.deepEqual(
     files.map((file) => readFileSync(join(cwd, file), 'utf8')),
     before,
@@ -101,7 +115,7 @@ test('no-tag npm version updates the set without committing or staging', (t) => 
   const { run } = fixture(t);
   const head = run('git', ['rev-parse', 'HEAD']);
   run('npm', ['version', '0.12.1', '--no-git-tag-version']);
-  run('node', ['scripts/sync-release-versions.mjs', '--check']);
+  run('node', ['tooling/release/sync-release-versions.mjs', '--check']);
   assert.equal(run('git', ['rev-parse', 'HEAD']), head);
   assert.equal(run('git', ['diff', '--cached', '--name-only']).trim(), '');
   assert.equal(run('git', ['tag']).trim(), '');
@@ -109,16 +123,16 @@ test('no-tag npm version updates the set without committing or staging', (t) => 
 
 test('the real repository lockfile keeps external dependencies and workspace links intact', (t) => {
   const { cwd, run } = fixture(t);
-  for (const file of files) copyFileSync(new URL(`../${file}`, import.meta.url), join(cwd, file));
+  for (const file of files) copyFileSync(new URL(`../../${file}`, import.meta.url), join(cwd, file));
   const before = JSON.parse(readFileSync(join(cwd, 'package-lock.json'), 'utf8'));
   run('npm', ['version', '99.0.0-rc.1', '--no-git-tag-version']);
-  run('node', ['scripts/sync-release-versions.mjs', '--check']);
+  run('node', ['tooling/release/sync-release-versions.mjs', '--check']);
   const after = JSON.parse(readFileSync(join(cwd, 'package-lock.json'), 'utf8'));
   for (const [key, entry] of Object.entries(before.packages)) {
-    if (!['', 'packages/timezone', 'packages/mysql'].includes(key)) {
+    if (!['', 'packages/hono-kit', 'packages/timezone', 'packages/mysql'].includes(key)) {
       assert.deepEqual(after.packages[key], entry, key);
     }
   }
-  assert.equal(after.packages[''].peerDependencies['@rdlabo/workers-mysql'], '^99.0.0-rc.1');
+  assert.equal(after.packages['packages/hono-kit'].peerDependencies['@rdlabo/workers-mysql'], '^99.0.0-rc.1');
   assert.equal(after.packages['packages/mysql'].devDependencies['@rdlabo/workers-timezone'], '^99.0.0-rc.1');
 });

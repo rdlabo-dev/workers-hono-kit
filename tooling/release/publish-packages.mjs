@@ -18,7 +18,7 @@ const packageDefinitions = [
   },
   {
     name: '@rdlabo/workers-hono-kit',
-    manifestPath: 'package.json',
+    manifestPath: 'packages/hono-kit/package.json',
   },
 ];
 

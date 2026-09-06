@@ -19,17 +19,17 @@ function writePackage(pkg) {
   writeFileSync(pkg.path, `${JSON.stringify(pkg.value, null, 2)}\n`);
 }
 
-const root = readPackage('package.json');
+const kit = readPackage('packages/hono-kit/package.json');
 const timezone = readPackage('packages/timezone/package.json');
 const mysql = readPackage('packages/mysql/package.json');
 
-root.value.version = candidateVersion(root.value);
+kit.value.version = candidateVersion(kit.value);
 timezone.value.version = candidateVersion(timezone.value);
 mysql.value.version = candidateVersion(mysql.value);
-root.value.peerDependencies['@rdlabo/workers-timezone'] = timezone.value.version;
-root.value.peerDependencies['@rdlabo/workers-mysql'] = mysql.value.version;
+kit.value.peerDependencies['@rdlabo/workers-timezone'] = timezone.value.version;
+kit.value.peerDependencies['@rdlabo/workers-mysql'] = mysql.value.version;
 mysql.value.devDependencies['@rdlabo/workers-timezone'] = timezone.value.version;
 
-writePackage(root);
+writePackage(kit);
 writePackage(timezone);
 writePackage(mysql);

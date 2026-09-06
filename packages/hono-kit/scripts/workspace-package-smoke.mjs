@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'workers-workspace-smoke-'));
 const commandEnvironment = {
   ...process.env,
@@ -12,10 +12,7 @@ const commandEnvironment = {
 };
 
 function pack(workspace) {
-  const args = ['pack', '--json', '--pack-destination', temporaryDirectory];
-  if (workspace) {
-    args.push('--workspace', workspace);
-  }
+  const args = ['pack', '--json', '--pack-destination', temporaryDirectory, '--workspace', workspace];
   const result = JSON.parse(
     execFileSync('npm', args, {
       cwd: root,
@@ -29,7 +26,7 @@ function pack(workspace) {
 try {
   const timezoneTarball = pack('@rdlabo/workers-timezone');
   const mysqlTarball = pack('@rdlabo/workers-mysql');
-  const kitTarball = pack();
+  const kitTarball = pack('@rdlabo/workers-hono-kit');
   const rootConsumer = join(temporaryDirectory, 'root-consumer');
   mkdirSync(rootConsumer);
   writeFileSync(join(rootConsumer, 'package.json'), '{"private":true,"type":"module"}\n');
