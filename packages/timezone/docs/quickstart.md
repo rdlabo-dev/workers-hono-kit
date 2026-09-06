@@ -113,12 +113,6 @@ npx tsx demo.ts
 
 Lint should pass again; the added final line prints `2026-01-02`.
 
-## 4. Keep the pair active
+## 4. Use it in your app
 
-Merge this configuration into your application and run lint in CI.
-
-For application and CI setup, see [Catch timezone bugs with ESLint](./eslint.md).
-
-See [rule coverage](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone) and [DST behavior](./timezones.md).
-
-For MySQL, fixed `+09:00` storage is a separate contract owned by [Workers MySQL](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart). Changing an IANA display timezone does not change the database wire timezone.
+Follow [application setup](../README.md) to choose the default timezone, then [enable ESLint in CI](./eslint.md). See [Timezones and calendar dates](./timezones.md) for per-user settings, DST, and database boundaries.

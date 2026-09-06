@@ -4,14 +4,7 @@ Timezone-aware calendar and wall-clock utilities for Cloudflare Workers. Workers
 instants; this package lets an application select an IANA timezone once per isolate and handles DST
 when converting between instants and local dates.
 
-Fixed MySQL `+09:00` storage helpers live in [`@rdlabo/workers-mysql`](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme)
-and do not follow this package's IANA display timezone.
-
-## Start with conversions and checks together
-
-[Try timezone conversions and ESLint together](./docs/quickstart.md).
-
-Pair this library with `workers-timezone/recommended` from `@rdlabo/eslint-plugin-rules` to detect implicit timezone dependencies. Enable typed linting and run lint in CI.
+Try the [conversion demo](./docs/quickstart.md). We recommend pairing the library with [ESLint checks](./docs/eslint.md) to catch implicit timezone usage.
 
 ## Install
 
@@ -35,8 +28,6 @@ localDateTimeToInstant('2026-07-01', '09:00:00');
 
 Initialize once during module evaluation, never per request or tenant. The uninitialized default
 is `Asia/Tokyo`; pass an explicit timezone to conversions for user-specific behavior.
-
-Use [Catch timezone bugs with ESLint](./docs/eslint.md) to enable typed linting and the timezone preset. Run lint in CI alongside your timezone tests.
 
 ## Documentation
 
