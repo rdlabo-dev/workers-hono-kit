@@ -1,6 +1,6 @@
 {
   "name": "@rdlabo/workers-hono-kit",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -108,8 +108,8 @@
   },
   "peerDependencies": {
     "@hono/zod-validator": "^0.8.0",
-    "@rdlabo/workers-mysql": "^0.12.1",
-    "@rdlabo/workers-timezone": "^0.12.1",
+    "@rdlabo/workers-mysql": "^0.12.2",
+    "@rdlabo/workers-timezone": "^0.12.2",
     "ai": "^6.0.0",
     "ai-gateway-provider": "^3.1.0",
     "aws4fetch": "^1.0.20",

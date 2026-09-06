@@ -1,6 +1,6 @@
 {
   "name": "@rdlabo/workers-mysql",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "private": false,
   "publishConfig": {
     "access": "public",
@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@hono/eslint-config": "^2.1.0",
-    "@rdlabo/workers-timezone": "^0.12.1",
+    "@rdlabo/workers-timezone": "^0.12.2",
     "drizzle-orm": "^0.45.2",
     "eslint": "^9.39.4",
     "prettier": "^3.8.4",
