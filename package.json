@@ -35,7 +35,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "test:package": "npm run test:package --workspace @rdlabo/workers-hono-kit",
-    "test:release": "node --test tooling/release/publish-packages.test.mjs tooling/release/sync-release-versions.test.mjs",
+    "test:release": "node --test tooling/release/publish-packages.test.mjs tooling/release/sync-release-versions.test.mjs packages/hono-kit/scripts/parse-npm-pack-json.test.mjs",
     "format": "prettier --write \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"tooling/**/*.mjs\"",
     "format:check": "prettier --check \"packages/**/*.{ts,mjs,md,json}\" \"*.mjs\" \"tooling/**/*.mjs\"",
     "release": "np --no-tests --no-publish",

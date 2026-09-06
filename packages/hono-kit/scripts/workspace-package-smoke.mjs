@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseNpmPackFilename } from './parse-npm-pack-json.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'workers-workspace-smoke-'));
@@ -20,7 +21,7 @@ function pack(workspace) {
       env: commandEnvironment,
     }),
   );
-  return join(temporaryDirectory, result[0].filename);
+  return join(temporaryDirectory, parseNpmPackFilename(result, workspace));
 }
 
 try {
