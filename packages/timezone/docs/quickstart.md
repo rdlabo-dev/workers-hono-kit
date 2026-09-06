@@ -2,13 +2,11 @@
 title: Try timezone conversions and ESLint together
 ---
 
-One instant can belong to different calendar dates. First see that difference, then make ESLint report code that accidentally falls back to the host timezone. These two steps are the recommended starting point for newcomers and AI coding agents.
-
-The library performs runtime conversions. The companion preset checks code during development. They are separately installed packages with no runtime dependency on each other. Neither requires Hono or a database.
+One instant can belong to different calendar dates. First see that difference, then make ESLint report code that accidentally falls back to the host timezone.
 
 ## 1. Install the pair
 
-Use Node.js 24 and npm in a new directory. The package versions below match this guide; the ESLint 10 toolchain makes the exercise reproducible without assuming an existing framework setup.
+Requires Node.js 24 and npm.
 
 ```sh
 mkdir timezone-demo
@@ -117,8 +115,8 @@ Lint should pass again; the added final line prints `2026-01-02`.
 
 ## 4. Keep the pair active
 
-In an existing application, merge this configuration into its ESLint setup. Include the preset, typed linting, and the project lint command in onboarding instructions and AI coding instructions. Run lint in CI so later changes receive the same checks.
+Merge this configuration into your application and run lint in CI.
 
-Static checks do not replace tests: dynamic values and some indirect calls remain outside analysis. The initialization rule allows a file to omit initialization and permits at most one supported call site per file; it does not enforce application-wide uniqueness. See [the exact rule coverage](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone) and [DST behavior](./timezones.md).
+See [rule coverage](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone) and [DST behavior](./timezones.md).
 
 For MySQL, fixed `+09:00` storage is a separate contract owned by [Workers MySQL](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart). Changing an IANA display timezone does not change the database wire timezone.

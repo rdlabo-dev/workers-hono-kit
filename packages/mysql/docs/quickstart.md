@@ -4,7 +4,7 @@ title: Run your first MySQL query
 
 Read an actual MySQL result through the package without creating tables or an application schema. Then see exactly what changes when moving from a local Node.js connection to a Workers Hyperdrive binding.
 
-Workers MySQL owns database access and retry behavior. Hono is optional; the application owns its schema and query policy. IANA display dates belong to [Workers Timezone + ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart), independently of the database fixed `+09:00` storage helpers.
+IANA display dates belong to [Workers Timezone + ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart), independently of the database fixed `+09:00` storage helpers.
 
 ## 1. Prepare the local exercise
 
@@ -81,7 +81,7 @@ docker stop workers-mysql-docs-demo
 
 ## 3. Move to Workers and Hyperdrive
 
-In Node.js, the application owns the pool and closes it. In Workers, enable `nodejs_compat`, configure a Hyperdrive binding named `DB` that connects to your database, and create the database inside each invocation. An account and a configured binding are required for this next stage; installing the npm package does not create either.
+In Node.js, the application owns the pool and closes it. In Workers, enable `nodejs_compat`, configure a Hyperdrive binding named `DB` that connects to your database, and create the database inside each invocation.
 
 Once the binding exists, the complete Worker below returns `[{"value":42}]`. It uses one binding for both roles; it needs no schema because the example uses raw SQL:
 

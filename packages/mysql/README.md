@@ -1,6 +1,6 @@
 # @rdlabo/workers-mysql
 
-MySQL and Hyperdrive infrastructure for Cloudflare Workers without a Hono dependency. Compose
+MySQL and Hyperdrive infrastructure for Cloudflare Workers. Compose
 invocation-scoped primary/replica access, deadlock retries, optional Drizzle helpers, and Node.js
 migration/testing tools while the application keeps its schemas and credentials.
 
@@ -12,8 +12,6 @@ compatibility_flags = ["nodejs_compat"]
 ```
 
 ## Start with a real query
-
-Use this package for database access, with or without Hono. It handles connections, primary/replica paths, and retry mechanics while your application owns its schema and transaction policy.
 
 [Run your first MySQL query](./docs/quickstart.md): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
 
