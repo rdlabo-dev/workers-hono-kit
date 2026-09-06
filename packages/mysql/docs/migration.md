@@ -18,10 +18,11 @@ the Node declarations described in the [README](../README.md).
 | Kit `/db` baseline helpers             | `@rdlabo/workers-mysql/migrations` |
 | Kit `/testing` database helpers        | `@rdlabo/workers-mysql/testing`    |
 
-The old `/db` and DB-related `/testing` paths are temporarily deprecated re-exports. Do not import
-the legacy aggregate `/db` in new Worker code: use the dedicated runtime entry points to keep
-Node-only migration code out of the Worker bundle. Rename `honoDrizzleConfig` to
-`workersDrizzleConfig` when updating configuration.
+The old `/db` and DB-related `/testing` paths remain available as maintained compatibility
+re-exports with `@deprecated` notices; there is no planned removal. Do not import the legacy
+aggregate `/db` in new Worker code: use the dedicated runtime entry points to keep Node-only
+migration code out of the Worker bundle. Rename `honoDrizzleConfig` to `workersDrizzleConfig` when
+updating configuration.
 
 No Hono dependency is required by this database package. The fixed-JST storage contract also
 remains separate from configurable business timezones; see [Drizzle and dates](./drizzle.md).

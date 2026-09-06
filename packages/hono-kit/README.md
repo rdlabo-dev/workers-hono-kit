@@ -1,8 +1,25 @@
 # @rdlabo/workers-hono-kit
 
-Infrastructure helpers for Hono APIs on Cloudflare Workers. The kit provides HTTP, authentication,
-AWS, AI, Stripe, KV, queue, realtime, and offline building blocks; domain logic and database schemas
-stay in the consuming application.
+Shared Hono building blocks for Cloudflare Workers APIs: weak ETags, NestJS-shaped validation and
+error bodies, Firebase auth middleware, AWS helpers, AI Gateway wiring, Stripe, KV, queues,
+realtime, and offline contracts. Domain logic and database schemas stay in the consuming
+application.
+
+## Choose an entry point
+
+| Import                                   | Responsibility                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| `@rdlabo/workers-hono-kit`               | HTTP, auth, Firebase, AWS, AI, Stripe, KV, and queue primitives      |
+| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for `@rdlabo/workers-mysql`                   |
+| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts   |
+| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                           |
+| `@rdlabo/workers-hono-kit/testing`       | Auth helpers, fakes, Stripe fixtures, and compatibility test exports |
+| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility path for `@rdlabo/workers-mysql`            |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility path for `@rdlabo/workers-timezone`         |
+
+The root entry point does not load MySQL, Drizzle, or Node-only migration modules. MySQL consumers
+install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
+adapter.
 
 ## Install
 
@@ -21,27 +38,11 @@ npm install hono zod @hono/zod-validator jose aws4fetch ai-gateway-provider
 
 Additional optional peers and packages stay separate:
 
-| Capability              | Install                                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| AI SDK model wrappers   | `ai`                                                                                                                                   |
-| MySQL and Hyperdrive    | [`@rdlabo/workers-mysql`](https://github.com/rdlabo-dev/workers-hono-kit/tree/main/packages/mysql#readme) and optionally `drizzle-orm` |
-| IANA timezone utilities | [`@rdlabo/workers-timezone`](https://github.com/rdlabo-dev/workers-hono-kit/tree/main/packages/timezone#readme)                        |
-
-## Kit entry points
-
-| Import                                   | Responsibility                                                       |
-| ---------------------------------------- | -------------------------------------------------------------------- |
-| `@rdlabo/workers-hono-kit`               | HTTP, auth, Firebase, AWS, AI, Stripe, KV, and queue primitives      |
-| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for `@rdlabo/workers-mysql`                   |
-| `@rdlabo/workers-hono-kit/offline`       | Offline replica wire, cursor, journal, and compatibility contracts   |
-| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers                           |
-| `@rdlabo/workers-hono-kit/testing`       | Auth helpers, fakes, Stripe fixtures, and compatibility test exports |
-| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility path for `@rdlabo/workers-mysql`            |
-| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility path for `@rdlabo/workers-timezone`         |
-
-The root entry point does not load MySQL, Drizzle, or Node-only migration modules. MySQL consumers
-install the standalone package, which owns `mysql2`; Hono-specific wiring stays in the `/mysql`
-adapter.
+| Capability              | Install                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| AI SDK model wrappers   | `ai`                                                                                                               |
+| MySQL and Hyperdrive    | [`@rdlabo/workers-mysql`](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme) and optionally `drizzle-orm` |
+| IANA timezone utilities | [`@rdlabo/workers-timezone`](https://docs.rdlabo.dev/projects/workers-timezone/docs/readme)                        |
 
 From `0.12.0`, `/testing` retains static DB compatibility exports. Every `/testing` consumer,
 including applications using only Firebase or KV fakes, must install `@rdlabo/workers-mysql` and
@@ -50,6 +51,35 @@ including applications using only Firebase or KV fakes, must install `@rdlabo/wo
 Version `0.12.0` moves the root MySQL exports to the standalone package and `/mysql` adapter.
 Existing users should follow the [MySQL migration guide](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
 before upgrading.
+
+## Quick start
+
+A minimal Hono app with weak ETags, the shared error body, and 404 JSON
+`{ message: 'Cannot METHOD path', error: 'Not Found', statusCode: 404 }`:
+
+```ts
+import { Hono } from 'hono';
+import { createAppErrorHandler, finalizeResponse, notFoundHandler } from '@rdlabo/workers-hono-kit';
+
+const app = new Hono();
+
+app.use('*', finalizeResponse());
+app.onError(createAppErrorHandler());
+app.notFound(notFoundHandler);
+
+app.get('/health', (c) => c.json({ ok: true }));
+
+export default app;
+```
+
+### Compatibility import deprecations
+
+Kit `/db`, `/business-time`, and the DB-related `/testing` exports (`createTestDb`, pool/noop
+database fakes, and shared `Database` types) carry symbol-level `@deprecated` tags that point at
+`@rdlabo/workers-mysql` / `@rdlabo/workers-timezone`. Prefer those packages for new code. The
+compatibility aliases keep the same runtime identity and signatures; there is no planned removal.
+Kit-owned helpers such as `reopenGuardedPaymentFailedSet`, `/mysql` `createContainerRuntime`, and
+Firebase/auth/KV/Stripe test helpers are not deprecated by this migration.
 
 ## Documentation
 

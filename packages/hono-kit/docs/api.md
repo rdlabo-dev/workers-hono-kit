@@ -1,8 +1,11 @@
 # Packages and API entry points
 
-This repository contains the Hono kit and two standalone packages. For feature-level examples, see
-[HTTP and Authentication](./http-auth.md), [Data Layer](./data-layer.md),
-[Realtime and Offline](./realtime-offline.md), and [Testing and Operations](./testing-operations.md).
+Entry-point map for the Hono kit and the standalone MySQL and timezone packages.
+
+- [HTTP and Authentication](./http-auth.md)
+- [Data Layer](./data-layer.md)
+- [Realtime and Offline](./realtime-offline.md)
+- [Testing and Operations](./testing-operations.md)
 
 ## Standalone packages
 
@@ -25,3 +28,8 @@ This repository contains the Hono kit and two standalone packages. For feature-l
 | `@rdlabo/workers-hono-kit/offline`       | Table-agnostic REST/DB method converters and replica wire helpers.       | [Offline](./api-offline.md)                   |
 | `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers.                              | [Realtime and Offline](./realtime-offline.md) |
 | `@rdlabo/workers-hono-kit/testing`       | Drizzle-backed test DB, fakes, fixtures, and binding doubles.            | [Testing](./api-testing.md)                   |
+
+## Next step
+
+Open the reference linked above for each entry point, or start from
+[HTTP and Authentication](./http-auth.md) for feature-level examples.

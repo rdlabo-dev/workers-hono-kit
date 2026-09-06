@@ -1,7 +1,17 @@
+import {
+  createNoopDatabase as createNoopDatabaseCanonical,
+  createPoolDatabase as createPoolDatabaseCanonical,
+} from '@rdlabo/workers-mysql/testing';
+import type { CreatePoolDatabaseOptions as CreatePoolDatabaseOptionsCanonical } from '@rdlabo/workers-mysql/testing';
 import type { DecodedIdToken, FirebaseVerifier } from '../firebase/firebase-verifier.js';
 
-export { createPoolDatabase, createNoopDatabase } from '@rdlabo/workers-mysql/testing';
-export type { CreatePoolDatabaseOptions } from '@rdlabo/workers-mysql/testing';
+/** @deprecated Import from `@rdlabo/workers-mysql/testing` instead. */
+export const createPoolDatabase: typeof createPoolDatabaseCanonical = createPoolDatabaseCanonical;
+/** @deprecated Import from `@rdlabo/workers-mysql/testing` instead. */
+export const createNoopDatabase: typeof createNoopDatabaseCanonical = createNoopDatabaseCanonical;
+
+/** @deprecated Import from `@rdlabo/workers-mysql/testing` instead. */
+export type CreatePoolDatabaseOptions<TDrizzle> = CreatePoolDatabaseOptionsCanonical<TDrizzle>;
 
 /** In-memory Firebase verifier for route tests. */
 export class FakeFirebaseVerifier implements FirebaseVerifier {

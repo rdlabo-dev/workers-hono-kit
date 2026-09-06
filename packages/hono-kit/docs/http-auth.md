@@ -1,3 +1,13 @@
+# HTTP and Authentication
+
+Validation, Firebase authentication, shared NestJS-shaped error bodies, and response finalization
+for Hono Workers APIs.
+
+- [Data Layer](./data-layer.md)
+- [Realtime and Offline](./realtime-offline.md)
+- [Testing and Operations](./testing-operations.md)
+- [API reference](./api.md)
+
 ## Validation
 
 `validate(target, schema, options?)` adapts a Zod schema to Hono and returns a NestJS `ValidationPipe`-shaped `400` response. Use `createValidate({ sentry })` to bind optional reporting once.
@@ -34,3 +44,8 @@ Mount `createMaintenanceMiddleware()` after CORS and before container or databas
 ## Deferred work and observability
 
 `createWaitUntilDefer(ctx)` registers background work through `waitUntil` and logs rejected work. `perfLog()` emits per-request application latency, colo, cold/warm state, route, and status to Workers Logs and optionally Analytics Engine.
+
+## Next step
+
+Continue to [Data Layer](./data-layer.md) for MySQL and Hyperdrive, or [API](./api.md) for the full
+export list.

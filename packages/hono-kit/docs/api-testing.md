@@ -19,6 +19,10 @@ This is the canonical home of the local MySQL/Drizzle test database and database
 Hono, Firebase, Stripe, KV, and Queue test helpers remain owned by the kit. Its DB exports are
 deprecated compatibility re-exports of `@rdlabo/workers-mysql/testing`.
 
+Only the promoted DB functions and types carry `@deprecated` notices, with the replacement import
+path shown in editor documentation. Kit-owned helpers such as `FakeFirebaseVerifier`, `fakeKv`,
+and `fakeQueue` are not deprecated. Existing imports remain supported.
+
 These compatibility exports are loaded statically. Importing **any** helper from this entry point
 requires `@rdlabo/workers-mysql` and `drizzle-orm`, even when the test does not use a database.
 For candidate tarball installation, see [Development](./development.md).
@@ -32,3 +36,9 @@ For candidate tarball installation, see [Development](./development.md).
 | `configurableFake(impl, name?)`                                                                                                     | Build a test double from a partial implementation; un-stubbed members throw `"${name}.${method} not configured"`.     |
 | `fakeApiList` / `fakePaymentIntent` / `fakeStripeEvent` / `fakeCheckoutSession` / `fakeCustomer` / `fakePrice` / `fakeSubscription` | Stripe object fixtures with sensible defaults, overridable per test.                                                  |
 | `fakeKv()` / `fakeQueue()` / `FakeQueue`                                                                                            | In-memory Workers KV / Queues producer doubles (`sent` + `batchCount` on queues for subrequest-bound assertions).     |
+
+## Next step
+
+Return to [Testing and Operations](./testing-operations.md), or see
+[`@rdlabo/workers-mysql/testing`](https://docs.rdlabo.dev/projects/workers-mysql/docs/tooling) for
+the canonical DB test helpers.

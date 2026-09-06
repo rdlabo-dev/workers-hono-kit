@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- exercises the compatibility surface */
 import * as canonicalExports from '@rdlabo/workers-timezone';
 import { describe, it, expect } from 'vitest';
 import * as legacyExports from './index.js';
@@ -12,18 +13,16 @@ import {
   normalizeBusinessDate,
   parseBusinessDateTime,
   startOfBusinessDay,
-  today,
   toBusinessDate,
   toBusinessDateTime,
+  today,
 } from './index.js';
 
 describe('legacy export parity', () => {
   it('canonical packageの全runtime exportを同一参照でre-exportする', () => {
     expect(Object.keys(legacyExports).sort()).toEqual(Object.keys(canonicalExports).sort());
-    for (const name of Object.keys(canonicalExports)) {
-      expect(legacyExports[name as keyof typeof legacyExports]).toBe(
-        canonicalExports[name as keyof typeof canonicalExports],
-      );
+    for (const name of Object.keys(canonicalExports) as (keyof typeof canonicalExports)[]) {
+      expect(legacyExports[name]).toBe(canonicalExports[name]);
     }
   });
 });

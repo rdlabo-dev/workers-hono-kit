@@ -1,3 +1,13 @@
+# Realtime and Offline
+
+Durable Object WebSocket helpers and table-agnostic offline replica contracts. Product schemas,
+Zod shapes, and domain policy stay in the application.
+
+- [HTTP and Authentication](./http-auth.md)
+- [Data Layer](./data-layer.md)
+- [Testing and Operations](./testing-operations.md)
+- [API reference](./api.md)
+
 ## Durable Object realtime
 
 The root and `/realtime` entry points expose the same focused realtime primitives:
@@ -25,3 +35,8 @@ Wire helpers canonicalize values:
 - `replicaNowIso(clock?)` → injectable current time
 
 Journal helpers enforce cursor coverage, retention, mutation transactions, and rebaseline behavior. Wire compatibility helpers let an application accept explicit previous fingerprints while maintaining a canonical current fingerprint.
+
+## Next step
+
+Continue to [Testing and Operations](./testing-operations.md), or [Offline API](./api-offline.md) for
+converter and wire export details.

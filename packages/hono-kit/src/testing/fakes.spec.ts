@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- compatibility surface under test */
 import { describe, expect, it } from 'vitest';
 import { createNoopDatabase, FakeFirebaseVerifier } from './fakes.js';
-
 describe('FakeFirebaseVerifier', () => {
   it('register したトークンは verifyIdToken で復元できる', async () => {
     const fb = new FakeFirebaseVerifier();
