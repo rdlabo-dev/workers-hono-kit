@@ -1,3 +1,13 @@
+# Data Layer
+
+Standalone MySQL / Hyperdrive access for Workers, plus the thin Hono container adapter. Fixed
+`+09:00` storage helpers are independent of IANA display timezones.
+
+- [HTTP and Authentication](./http-auth.md)
+- [Realtime and Offline](./realtime-offline.md)
+- [Testing and Operations](./testing-operations.md)
+- [API reference](./api.md)
+
 Import database helpers from `@rdlabo/workers-mysql`. The package installs `mysql2` directly. Add
 `drizzle-orm` only when using the `/drizzle` or `/testing` entry point. The old
 `@rdlabo/workers-hono-kit/db` path is a deprecated compatibility re-export.
@@ -28,7 +38,9 @@ upgrading:
 | DB helpers from `@rdlabo/workers-hono-kit/db`           | `@rdlabo/workers-mysql`, `/drizzle`, or `/migrations` |
 | DB test helpers from `@rdlabo/workers-hono-kit/testing` | `@rdlabo/workers-mysql/testing`                       |
 
-The old `/db` and DB-related `/testing` exports remain temporarily as deprecated migration aids.
+The old `/db` and DB-related `/testing` exports remain available for backward compatibility.
+Their individual functions and types carry `@deprecated` notices pointing to the standalone
+package. No removal release is scheduled. The kit-owned `/mysql` adapter is not deprecated.
 Because `/testing` statically re-exports DB helpers, all kit `/testing` consumers must install the
 MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as Firebase or KV fakes.
 
@@ -97,3 +109,9 @@ toBusinessDateTime(new Date('2026-07-05T21:00:00Z'));
 addBusinessDays('2026-07-06', 3);
 // '2026-07-09'
 ```
+
+## Next step
+
+Continue to [Realtime and Offline](./realtime-offline.md), or see
+[`@rdlabo/workers-mysql`](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme) for the
+standalone package guides.

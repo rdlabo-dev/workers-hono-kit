@@ -14,6 +14,10 @@
     "url": "git+https://github.com/rdlabo-dev/workers-hono-kit.git",
     "directory": "packages/mysql"
   },
+  "bugs": {
+    "url": "https://github.com/rdlabo-dev/workers-hono-kit/issues"
+  },
+  "homepage": "https://github.com/rdlabo-dev/workers-hono-kit/tree/main/packages/mysql#readme",
   "files": [
     "dist",
     "bin",

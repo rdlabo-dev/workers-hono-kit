@@ -1,6 +1,8 @@
 # @rdlabo/workers-mysql
 
-MySQL, Hyperdrive, and Drizzle infrastructure for Cloudflare Workers.
+MySQL and Hyperdrive infrastructure for Cloudflare Workers without a Hono dependency. Compose
+invocation-scoped primary/replica access, deadlock retries, optional Drizzle helpers, and Node.js
+migration/testing tools while the application keeps its schemas and credentials.
 
 The Worker must enable Node.js compatibility because `mysql2` uses Node.js networking APIs:
 
@@ -8,6 +10,15 @@ The Worker must enable Node.js compatibility because `mysql2` uses Node.js netwo
 # wrangler.toml
 compatibility_flags = ["nodejs_compat"]
 ```
+
+## Choose an entry point
+
+| Import                             | Responsibility                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `@rdlabo/workers-mysql`            | Workers MySQL and Hyperdrive runtime, retry, write-result, and JST wire helpers |
+| `@rdlabo/workers-mysql/drizzle`    | Drizzle configuration and JST column helpers                                    |
+| `@rdlabo/workers-mysql/migrations` | Node.js migration and brownfield baseline helpers                               |
+| `@rdlabo/workers-mysql/testing`    | Local MySQL/Drizzle test database and fakes                                     |
 
 ## Install
 
@@ -36,16 +47,7 @@ pnpm add -D @types/node@20
 Use the matching supported major for your tooling. Automatic peer installation alone may not expose
 these global declarations to the application's TypeScript compiler under pnpm.
 
-## Entry points
-
-| Import                             | Responsibility                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------- |
-| `@rdlabo/workers-mysql`            | Workers MySQL and Hyperdrive runtime, retry, write-result, and JST wire helpers |
-| `@rdlabo/workers-mysql/drizzle`    | Drizzle configuration and JST column helpers                                    |
-| `@rdlabo/workers-mysql/migrations` | Node.js migration and brownfield baseline helpers                               |
-| `@rdlabo/workers-mysql/testing`    | Local MySQL/Drizzle test database and fakes                                     |
-
-## Runtime
+## Quick start
 
 Create the database inside each Worker invocation. In this fragment, `env` contains the application's
 Hyperdrive bindings and `schema` is its own Drizzle schema:
@@ -65,6 +67,9 @@ const db = createHyperdriveDatabase({
 With `nodejs_compat` enabled, the package root is Workers-runtime-safe and does not load Drizzle or
 Node-only migration code.
 
+Fixed `+09:00` storage helpers are a MySQL wire contract. They do not follow IANA display timezones
+from [`@rdlabo/workers-timezone`](https://docs.rdlabo.dev/projects/workers-timezone/docs/readme).
+
 ## Hono integration
 
 Hono middleware remains an adapter in `@rdlabo/workers-hono-kit/mysql`; the database package itself
@@ -82,15 +87,16 @@ npm install @rdlabo/workers-mysql @rdlabo/workers-hono-kit
 
 ## Documentation
 
-- [Runtime](docs/runtime.md) — request lifetime, primary/replica reads, and retry safety.
-- [Drizzle and dates](docs/drizzle.md) — schema ownership, optional peer, and fixed-JST storage.
-- [Migrations and testing](docs/tooling.md) — Node.js tooling and destructive test helpers.
-- [API](docs/api.md) — public exports by entry point.
-- [Migration](docs/migration.md) — kit compatibility imports.
+- [Runtime](https://docs.rdlabo.dev/projects/workers-mysql/docs/runtime) — request lifetime, primary/replica reads, and retry safety.
+- [Drizzle and dates](https://docs.rdlabo.dev/projects/workers-mysql/docs/drizzle) — schema ownership, optional peer, and fixed-JST storage.
+- [Migrations and testing](https://docs.rdlabo.dev/projects/workers-mysql/docs/tooling) — Node.js tooling and destructive test helpers.
+- [API](https://docs.rdlabo.dev/projects/workers-mysql/docs/api) — public exports by entry point.
+- [Migration](https://docs.rdlabo.dev/projects/workers-mysql/docs/migration) — kit compatibility imports.
 
 These guides describe this source revision. Use the matching release tag for an installed version.
 
 ## Migrating from workers-hono-kit
 
 Kit `0.12.0` changes the import boundaries. Its old `/db` and DB-related `/testing` exports remain
-temporarily as deprecated compatibility paths. See [Migration](docs/migration.md) for the import map.
+available as maintained compatibility paths with `@deprecated` notices; there is no planned removal.
+See [Migration](https://docs.rdlabo.dev/projects/workers-mysql/docs/migration) for the import map.

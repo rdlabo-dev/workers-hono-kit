@@ -1,19 +1,23 @@
 /**
  * Shared test infrastructure for Hono on Cloudflare Workers projects.
  * Every import requires `@rdlabo/workers-mysql` and `drizzle-orm` because DB compatibility exports
- * are loaded statically, including when only non-DB helpers are used.
+ * are loaded statically, including when only non-DB helpers are used. Prefer
+ * `@rdlabo/workers-mysql/testing` for database helpers; kit-owned Firebase/auth/KV/Stripe fakes remain
+ * the supported testing surface here.
  *
  * Test-only helpers that are never loaded at runtime. This subpath consolidates the duplicated
  * test boilerplate (test DB setup, in-memory fakes, auth header builders, Stripe fixtures) that
  * tends to be copy-pasted across projects into a single, importable surface.
  */
+/* eslint-disable @typescript-eslint/no-deprecated -- compatibility barrel re-exports DB helpers */
 
 export { createTestDb } from './db.js';
 export type { TestDb, CreateTestDbOptions, TestDbConnection } from './db.js';
+export type { Database, DisposableDatabase, QueryRunner, TxOf } from './db.js';
 
-export { FakeFirebaseVerifier, createPoolDatabase, createNoopDatabase } from './fakes.js';
+export { FakeFirebaseVerifier } from './fakes.js';
+export { createPoolDatabase, createNoopDatabase } from './fakes.js';
 export type { CreatePoolDatabaseOptions } from './fakes.js';
-export type { Database, DisposableDatabase, QueryRunner, TxOf } from '@rdlabo/workers-mysql';
 
 // Authentication test helpers (route-spec header builders and user provisioning).
 export { authHeaders, registerFirebaseToken, provisionUser } from './auth.js';

@@ -1,3 +1,12 @@
+# Testing and Operations
+
+Test helpers, queue batching, operational CLIs, and trust boundaries for Hono Workers applications.
+
+- [HTTP and Authentication](./http-auth.md)
+- [Data Layer](./data-layer.md)
+- [Realtime and Offline](./realtime-offline.md)
+- [API reference](./api.md)
+
 ## Testing entry point
 
 `@rdlabo/workers-hono-kit/testing` is never loaded by production code. Its DB helpers are deprecated
@@ -14,6 +23,9 @@ Queue fakes remain in the Hono kit.
 | `fakeKv()` / `fakeQueue()`                                      | Use in-memory Workers binding fakes.                                  |
 | Stripe fixture factories                                        | Create typed events, sessions, subscriptions, prices, and intents.    |
 
+Because `/testing` statically re-exports DB helpers, every kit `/testing` consumer must install
+`@rdlabo/workers-mysql` and `drizzle-orm`, including consumers of non-DB helpers.
+
 ## Queues
 
 `sendInChunks()` bounds queue sends under Workers subrequest limits. `processBatch()` handles a message batch sequentially, bounding concurrent subrequests to one; errors explicitly marked with `queueDisposition: 'discard'` are acknowledged, while other failures retry. `createQueueErrorHandler()` adds logging and optional final-attempt reporting.
@@ -29,3 +41,8 @@ infrastructure.
 ## Trust boundaries
 
 AWS, Firebase, AI Gateway, Stripe, and database clients are configured by the consuming application. Do not place domain-specific credentials, schemas, or authorization policy inside the shared kit. Use `createRolePolicy()` only for storage-agnostic role and relation mapping; the application still owns its roles and permissions.
+
+## Next step
+
+See [Testing APIs](./api-testing.md) for export tables, [CLI](./cli.md) for command details, or
+[API](./api.md) for the full package map.

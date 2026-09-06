@@ -2,10 +2,10 @@ import { AwsClient } from 'aws4fetch';
 
 /** STS SigV4 signing region for the global endpoint (`sts.amazonaws.com`). */
 const DEFAULT_STS_REGION = 'us-east-1';
-/** winecode / airlec default — 15 minutes. */
+/** Default AssumeRole session duration — 15 minutes. */
 const DEFAULT_DURATION_SECONDS = 900;
 const STS_API_VERSION = '2011-06-15';
-/** Global STS endpoint (unchanged from winecode AwsService). */
+/** Global STS endpoint (`sts.amazonaws.com`). */
 const DEFAULT_STS_ENDPOINT = 'https://sts.amazonaws.com/';
 
 /**
@@ -60,8 +60,8 @@ export interface StsCredentials {
 /**
  * Call STS `AssumeRole` via SigV4-signed `fetch` (aws4fetch) and return temporary credentials.
  *
- * Port of winecode / airlec browser-upload credential issuance — no AWS SDK. The consuming app
- * supplies `roleArn` and `roleSessionName`; the kit only performs the signed STS request and XML parse.
+ * Issues temporary credentials for browser uploads via STS `AssumeRole` — no AWS SDK. The consuming
+ * app supplies `roleArn` and `roleSessionName`; the kit only performs the signed STS request and XML parse.
  *
  * @param options - Caller AWS keys plus assume-role parameters.
  * @returns Temporary credentials for browser or edge PutObject / GetObject.

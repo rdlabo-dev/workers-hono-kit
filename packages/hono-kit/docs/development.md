@@ -1,6 +1,7 @@
 # Development
 
-These commands are used when working on the package itself:
+Maintainer commands and release procedures for this monorepo. Application install guides live in
+each package README.
 
 ```bash
 npm install
@@ -12,13 +13,7 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 
 ## Candidate artifacts and publication
 
-The initial releases of `@rdlabo/workers-timezone@0.1.0` and `@rdlabo/workers-mysql@0.1.0` are
-complete. Both packages also have verified GitHub Actions Trusted Publisher connections for
-`rdlabo-dev/workers-hono-kit` / `release.yml`, with direct `npm publish` allowed and no environment
-restriction. No further bootstrap publication or Trusted Publisher creation is needed for them.
-The existing Hono kit does not need another bootstrap publish.
-Subsequent releases use the synchronized version flow below. Pull requests and merges build immutable
-candidate tarballs for all three packages:
+Pull requests and merges build immutable candidate tarballs for all three packages:
 
 - `rdlabo-workers-hono-kit-*.tgz`
 - `rdlabo-workers-timezone-*.tgz`
@@ -38,10 +33,6 @@ the local tarball; different content under an existing version fails and require
 
 ## Release bundle verification
 
-Only the two new packages required an initial owner publish. Do not repeat their `0.1.0` publishes
-or publish Hono kit `0.12.0` locally as another bootstrap step. The kit's minor bump covers breaking import
-and timezone behavior changes and remains a normal release.
-
 Use Node.js 24 with a current npm CLI. From a clean checkout at the reviewed commit, verify the
 release bundle without publishing:
 
@@ -58,21 +49,21 @@ node tooling/release/publish-packages.mjs --directory "$RELEASE_DIR" --manifests
 ```
 
 The last command only validates and prints the plan: it does not publish or contact npm.
-The published workspace versions can be checked on the public registry:
+Confirm registry visibility for the packages you intend to publish or skip:
 
 ```sh
-npm view @rdlabo/workers-timezone@0.1.0 version --registry https://registry.npmjs.org/
-npm view @rdlabo/workers-mysql@0.1.0 version --registry https://registry.npmjs.org/
+npm view @rdlabo/workers-timezone version --registry https://registry.npmjs.org/
+npm view @rdlabo/workers-mysql version --registry https://registry.npmjs.org/
+npm view @rdlabo/workers-hono-kit version --registry https://registry.npmjs.org/
 ```
 
-If either lookup fails, resolve registry visibility before releasing. Keep the published workspace
-contents unchanged: the tag workflow compares archive integrity and skips identical `0.1.0` versions
-when retrying a release. Changes to packaged contents require a new synchronized release version.
+If a lookup fails for a version that should already exist, resolve registry visibility before
+releasing. The tag workflow compares archive integrity and skips identical versions when retrying a
+release. Changes to packaged contents require a new synchronized release version.
 
 ## Trusted Publishing and repository protection
 
-The two new packages already have the following saved configuration. Do not create duplicate
-connections. Verify the existing Hono kit connection against these values before releasing:
+Verify each public package's Trusted Publisher connection against these values before releasing:
 
 | Field                    | Value                                                        |
 | ------------------------ | ------------------------------------------------------------ |
@@ -82,14 +73,14 @@ connections. Verify the existing Hono kit connection against these values before
 | Environment              | Leave empty (the workflow does not use a GitHub environment) |
 | Allowed action, if shown | Direct `npm publish`                                         |
 
-The workspace connections were configured on npm after the owner published the packages; they
-are external settings, not created by merging this PR.
-See [npm's Trusted Publishing guide](https://docs.npmjs.com/trusted-publishers/).
-Before releasing, test the two registry packages together with the locally packed, not-yet-published
-kit in a fresh consumer directory (using `RELEASE_DIR` from above):
+Do not create duplicate Trusted Publisher connections. Connections are npm account settings, not
+repository files. See [npm's Trusted Publishing guide](https://docs.npmjs.com/trusted-publishers/).
+
+Before releasing, install the packed candidates in a fresh consumer directory (using `RELEASE_DIR`
+from above):
 
 ```sh
-npm install @rdlabo/workers-timezone@0.1.0 @rdlabo/workers-mysql@0.1.0 "$RELEASE_DIR/rdlabo-workers-hono-kit-0.12.0.tgz" drizzle-orm
+npm install "$RELEASE_DIR"/rdlabo-workers-timezone-*.tgz "$RELEASE_DIR"/rdlabo-workers-mysql-*.tgz "$RELEASE_DIR"/rdlabo-workers-hono-kit-*.tgz drizzle-orm
 npm install -D @types/node@20
 ```
 
@@ -97,8 +88,8 @@ Before releasing, create an **active tag ruleset** for `v*` in GitHub repository
 restrict tag creation, updates, and deletion; grant bypass only to the designated release maintainer.
 That maintainer must tag only reviewed commits on `main`. The tag workflow runs code from the tag,
 so unrestricted tag creation would bypass the PR review boundary. Keep the default branch protected
-and require review for workflow/publisher changes as well. These repository settings are not applied
-by merging this PR.
+and require review for workflow/publisher changes as well. Configure these repository settings in
+GitHub; they are not applied by merging documentation.
 
 CI uses OIDC and generates provenance; no npm token secret or publication opt-in variable is needed.
 After merging the reviewed changes, `npm run release` creates the next release tag.
@@ -114,11 +105,11 @@ npm run release
 
 Choose the next version in `np`. Its npm `version` hook synchronizes the kit, timezone, and MySQL
 versions, internal dependency ranges, and lockfile **before** npm creates the release commit/tag.
-For example, choosing `0.12.1` advances all three packages to `0.12.1`, including the workspaces
-previously published at `0.1.0`. No separate workspace bump is required. The same applies to RCs.
-The tag workflow verifies synchronization, tests the packages, and publishes all three in dependency
-order. Unlike the Stripe repository's CI-side version update, no additional version commit is needed
-after tagging: the release tag already contains the complete version set.
+For example, choosing `0.12.1` advances all three packages to `0.12.1`. No separate workspace bump
+is required. The same applies to RCs. The tag workflow verifies synchronization, tests the packages,
+and publishes all three in dependency order. Unlike the Stripe repository's CI-side version update,
+no additional version commit is needed after tagging: the release tag already contains the complete
+version set.
 
 CI publishing requires the Trusted Publishing configuration above. Do not use `--ignore-scripts`
 when creating release versions: it bypasses synchronization and the tag workflow will reject the set.
