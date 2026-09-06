@@ -8,6 +8,12 @@ No Hono, database, or Node.js compatibility dependency is required. Fixed MySQL 
 helpers live in [`@rdlabo/workers-mysql`](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme)
 and do not follow this package's IANA display timezone.
 
+## Start with conversions and checks together
+
+[Try timezone conversions and ESLint together](./docs/quickstart.md): see the same instant fall on different calendar dates, deliberately reintroduce a host-local `Date` call, and watch lint detect it. Then fix the line and verify that lint passes.
+
+We recommend the runtime library plus the `workers-timezone/recommended` preset from `@rdlabo/eslint-plugin-rules` for both human and AI contributions. Include typed linting and a CI lint command in your onboarding checklist so later changes receive the same checks. They remain separate packages; install and configure each explicitly.
+
 ## Install
 
 ```sh
@@ -31,9 +37,9 @@ localDateTimeToInstant('2026-07-01', '09:00:00');
 Initialize once during module evaluation, never per request or tenant. The uninitialized default
 is `Asia/Tokyo`; pass an explicit timezone to conversions for user-specific behavior.
 
-## Optional ESLint companion
+## Recommended ESLint companion
 
-The `workers-timezone/recommended` preset from `@rdlabo/eslint-plugin-rules` is an optional static
+The `workers-timezone/recommended` preset from `@rdlabo/eslint-plugin-rules` is a separately installed static
 check that flags host-local `Date` / `Intl` usage that bypasses these conversions, and keeps
 `initializeTimezone` at one clear module-level site when present. Install the plugin separately;
 neither package depends on the other at runtime.

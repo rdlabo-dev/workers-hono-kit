@@ -5,6 +5,12 @@ error bodies, Firebase auth middleware, AWS helpers, AI Gateway wiring, Stripe, 
 realtime, and offline contracts. Domain logic and database schemas stay in the consuming
 application.
 
+## Start with one visible result
+
+Use this kit when a Hono API needs shared HTTP behavior, then add authentication, queues, or other helpers as needed. Your business rules and database schema stay in your application.
+
+[Try a Hono API locally](./docs/quickstart.md): send a health request, inspect its weak ETag, and see the missing-route JSON response. No Cloudflare account or open port is needed for the first exercise.
+
 ## Choose an entry point
 
 | Import                                   | Responsibility                                                       |

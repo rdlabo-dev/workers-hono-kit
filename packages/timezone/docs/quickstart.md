@@ -1,0 +1,124 @@
+---
+title: Try timezone conversions and ESLint together
+---
+
+One instant can belong to different calendar dates. First see that difference, then make ESLint report code that accidentally falls back to the host timezone. These two steps are the recommended starting point for newcomers and AI coding agents.
+
+The library performs runtime conversions. The companion preset checks code during development. They are separately installed packages with no runtime dependency on each other. Neither requires Hono or a database.
+
+## 1. Install the pair
+
+Use Node.js 24 and npm in a new directory. The package versions below match this guide; the ESLint 10 toolchain makes the exercise reproducible without assuming an existing framework setup.
+
+```sh
+mkdir timezone-demo
+cd timezone-demo
+npm init -y
+npm pkg set type=module
+npm install @rdlabo/workers-timezone@0.12.2
+npm install --save-dev @rdlabo/eslint-plugin-rules@22.1.0 eslint@10 @eslint/js@10 typescript@6 typescript-eslint@8 tsx@4
+```
+
+## 2. See the calendar date change
+
+Save this as `demo.ts`. Initialize the application timezone once at module scope; pass a per-call timezone for a user-specific conversion.
+
+```ts
+import { initializeTimezone, toLocalDate, toLocalDateTime } from '@rdlabo/workers-timezone';
+
+initializeTimezone({ timeZone: 'Asia/Tokyo' });
+const instant = new Date('2026-01-01T15:00:00Z');
+console.log(toLocalDateTime(instant));
+console.log(toLocalDate(instant, 'America/New_York'));
+```
+
+```sh
+npx tsx demo.ts
+```
+
+```text
+2026-01-02 00:00:00
+2026-01-01
+```
+
+The same instant is January 2 in Tokyo and January 1 in New York. Add an explicit timezone argument for another city to explore the difference.
+
+## 3. Make an accidental regression visible
+
+Save this as `tsconfig.json` so typed linting can find `demo.ts`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true
+  },
+  "include": ["demo.ts"]
+}
+```
+
+Save this as `eslint.config.mjs`. Keep type-aware configuration scoped to TypeScript files:
+
+```js
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import rdlabo from '@rdlabo/eslint-plugin-rules/typescript';
+
+export default tseslint.config(
+  eslint.configs.recommended,
+  {
+    files: ['**/*.ts'],
+    extends: [...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: dirname(fileURLToPath(import.meta.url)),
+      },
+    },
+    plugins: { '@rdlabo/rules': rdlabo },
+  },
+  ...rdlabo.configs['workers-timezone/recommended'],
+);
+```
+
+Check the correct example:
+
+```sh
+npx eslint demo.ts
+```
+
+It should exit successfully without diagnostics. Now append this deliberately incorrect line to `demo.ts`:
+
+```ts
+console.log(instant.getDate());
+```
+
+```sh
+npx eslint demo.ts
+```
+
+Expect a nonzero exit status and `@rdlabo/rules/no-implicit-timezone`. `getDate()` reads the host-local day, which bypasses the application timezone. Replace only the added line with:
+
+```ts
+console.log(toLocalDate(instant));
+```
+
+```sh
+npx eslint demo.ts
+npx tsx demo.ts
+```
+
+Lint should pass again; the added final line prints `2026-01-02`.
+
+## 4. Keep the pair active
+
+In an existing application, merge this configuration into its ESLint setup. Include the preset, typed linting, and the project lint command in onboarding instructions and AI coding instructions. Run lint in CI so later changes receive the same checks.
+
+Static checks do not replace tests: dynamic values and some indirect calls remain outside analysis. The initialization rule allows a file to omit initialization and permits at most one supported call site per file; it does not enforce application-wide uniqueness. See [the exact rule coverage](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone) and [DST behavior](./timezones.md).
+
+For MySQL, fixed `+09:00` storage is a separate contract owned by [Workers MySQL](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart). Changing an IANA display timezone does not change the database wire timezone.

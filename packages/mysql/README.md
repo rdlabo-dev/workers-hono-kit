@@ -11,6 +11,12 @@ The Worker must enable Node.js compatibility because `mysql2` uses Node.js netwo
 compatibility_flags = ["nodejs_compat"]
 ```
 
+## Start with a real query
+
+Use this package for database access, with or without Hono. It handles connections, primary/replica paths, and retry mechanics while your application owns its schema and transaction policy.
+
+[Run your first MySQL query](./docs/quickstart.md): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
+
 ## Choose an entry point
 
 | Import                             | Responsibility                                                                  |
