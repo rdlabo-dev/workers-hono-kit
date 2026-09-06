@@ -36,51 +36,7 @@ localDateTimeToInstant('2026-07-01', '09:00:00');
 Initialize once during module evaluation, never per request or tenant. The uninitialized default
 is `Asia/Tokyo`; pass an explicit timezone to conversions for user-specific behavior.
 
-## Recommended ESLint companion
-
-The preset checks host-local `Date` / `Intl` usage and the placement of `initializeTimezone`.
-
-Limits:
-
-- `no-implicit-timezone` needs typed linting (`recommendedTypeChecked` + `projectService`).
-- `initialize-timezone-at-module-scope` is syntactic: a file may omit initialization; when present,
-  there may be at most one allowed site in that file—not an app-wide single site, and not a
-  mandatory call in every module.
-- `toISOString()` and other explicit instant APIs remain available.
-
-```sh
-npm install --save-dev eslint @eslint/js typescript typescript-eslint @rdlabo/eslint-plugin-rules
-```
-
-Scope type-aware TypeScript configs to `**/*.ts` so tools that lint `eslint.config.mjs` do not ask
-`projectService` for a project that excludes that file:
-
-```js
-// eslint.config.mjs
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import rdlabo from '@rdlabo/eslint-plugin-rules/typescript';
-
-const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
-
-export default tseslint.config(
-  eslint.configs.recommended,
-  {
-    files: ['**/*.ts'],
-    extends: [...tseslint.configs.recommendedTypeChecked],
-    languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir },
-    },
-    plugins: { '@rdlabo/rules': rdlabo },
-  },
-  ...rdlabo.configs['workers-timezone/recommended'],
-);
-```
-
-See the ESLint plugin [Configuration](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/configuration)
-guide for Workers presets and typed-linting details.
+Use [Catch timezone bugs with ESLint](./docs/eslint.md) to enable typed linting and the timezone preset. Run lint in CI alongside your timezone tests.
 
 ## Documentation
 
