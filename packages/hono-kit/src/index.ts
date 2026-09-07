@@ -236,3 +236,12 @@ export {
 export { IdentityToolkit } from './firebase/identity-toolkit.js';
 export type { ServiceAccount } from './firebase/identity-toolkit.js';
 export { createRemoteFirebaseVerifier, createServiceAccountVerifier } from './firebase/remote-verifier.js';
+export {
+  APPLE_IDENTITY_ISSUER,
+  GOOGLE_IDENTITY_ISSUERS,
+  createAppleClientSecret,
+  hasFirebaseProviderIdentity,
+  verifyAppleIdentityToken,
+  verifyGoogleIdentityToken,
+} from './firebase/social-auth.js';
+export type { AppleClientSecretConfig } from './firebase/social-auth.js';
