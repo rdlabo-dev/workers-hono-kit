@@ -82,10 +82,32 @@ compatibility aliases keep the same runtime identity and signatures; there is no
 Kit-owned helpers such as `reopenGuardedPaymentFailedSet`, `/mysql` `createContainerRuntime`, and
 Firebase/auth/KV/Stripe test helpers are not deprecated by this migration.
 
-Google and Apple login endpoints can use the root exports `verifyGoogleIdentityToken`,
-`verifyAppleIdentityToken`, and `hasFirebaseProviderIdentity`. Apple token exchange can additionally
-use `createAppleClientSecret`. Applications keep ownership of HTTP responses, persistence, and
-provider token exchange or revocation; the Kit owns only reusable token verification and signing.
+### Social auth (Google / Apple)
+
+Root exports `verifyGoogleIdentityToken`, `verifyAppleIdentityToken`,
+`hasFirebaseProviderIdentity`, and `createAppleClientSecret` cover reusable OIDC subject
+verification, Firebase identity matching, and Apple `client_secret` signing. Applications keep
+ownership of HTTP responses, persistence, and provider token exchange or revocation.
+
+`hasFirebaseProviderIdentity` expects a **verified** Firebase ID-token payload. Pass
+`requireSignInProvider: true` when an endpoint requires sign-in through that provider
+(subject linked **and** `firebase.sign_in_provider` matches). Leave it `false` (default)
+for link/unlink checks or combined login/link endpoints that also accept sessions established
+through another provider. This policy belongs to the application.
+
+```ts
+import { hasFirebaseProviderIdentity, verifyGoogleIdentityToken } from '@rdlabo/workers-hono-kit';
+
+// firebaseVerifier is the application's configured FirebaseVerifier.
+const verifiedFirebaseToken = await firebaseVerifier.verifyIdToken(firebaseIdToken);
+const subject = await verifyGoogleIdentityToken(googleIdToken, GOOGLE_CLIENT_IDS);
+// login: require active Google sign-in
+if (!hasFirebaseProviderIdentity(verifiedFirebaseToken, 'google.com', subject, true)) {
+  return c.json({ error: 'Google identity mismatch' }, 401);
+}
+// link / unlink: subject present is enough
+// hasFirebaseProviderIdentity(verifiedFirebaseToken, 'google.com', subject)
+```
 
 ## Documentation
 
