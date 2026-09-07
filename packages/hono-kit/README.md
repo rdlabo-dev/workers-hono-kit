@@ -98,13 +98,15 @@ through another provider. This policy belongs to the application.
 ```ts
 import { hasFirebaseProviderIdentity, verifyGoogleIdentityToken } from '@rdlabo/workers-hono-kit';
 
+// firebaseVerifier is the application's configured FirebaseVerifier.
+const verifiedFirebaseToken = await firebaseVerifier.verifyIdToken(firebaseIdToken);
 const subject = await verifyGoogleIdentityToken(googleIdToken, GOOGLE_CLIENT_IDS);
 // login: require active Google sign-in
-if (!hasFirebaseProviderIdentity(userRecord, 'google.com', subject, true)) {
+if (!hasFirebaseProviderIdentity(verifiedFirebaseToken, 'google.com', subject, true)) {
   return c.json({ error: 'Google identity mismatch' }, 401);
 }
 // link / unlink: subject present is enough
-// hasFirebaseProviderIdentity(userRecord, 'google.com', subject)
+// hasFirebaseProviderIdentity(verifiedFirebaseToken, 'google.com', subject)
 ```
 
 ## Documentation
