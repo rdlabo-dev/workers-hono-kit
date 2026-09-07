@@ -82,6 +82,11 @@ compatibility aliases keep the same runtime identity and signatures; there is no
 Kit-owned helpers such as `reopenGuardedPaymentFailedSet`, `/mysql` `createContainerRuntime`, and
 Firebase/auth/KV/Stripe test helpers are not deprecated by this migration.
 
+Google and Apple login endpoints can use the root exports `verifyGoogleIdentityToken`,
+`verifyAppleIdentityToken`, and `hasFirebaseProviderIdentity`. Apple token exchange can additionally
+use `createAppleClientSecret`. Applications keep ownership of HTTP responses, persistence, and
+provider token exchange or revocation; the Kit owns only reusable token verification and signing.
+
 ## Documentation
 
 - [HTTP and Authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth)
