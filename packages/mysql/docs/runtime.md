@@ -5,7 +5,7 @@ title: Runtime
 # Runtime
 
 Enable `nodejs_compat` in your Worker and install the dependencies described in the
-[README](../README.md). `mysql2` is included. The application supplies its Hyperdrive bindings,
+[README](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme). `mysql2` is included. The application supplies its Hyperdrive bindings,
 schema, and ORM factory.
 
 ## Invocation lifetime
@@ -69,4 +69,4 @@ the outcome may be unknown. Handle application idempotency before retrying such 
 their caller owns connection cleanup. They expose `Database`, not the extra Hyperdrive primary-read
 methods. For Hono containers, use `@rdlabo/workers-hono-kit/mysql` (kit `0.12.0` or later).
 
-See [Drizzle and dates](./drizzle.md) for connection defaults and [API](./api.md) for exports.
+See [Drizzle and dates](https://docs.rdlabo.dev/projects/workers-mysql/docs/drizzle) for connection defaults and [API](https://docs.rdlabo.dev/projects/workers-mysql/docs/api) for exports.

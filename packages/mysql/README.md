@@ -40,7 +40,7 @@ these global declarations to the application's TypeScript compiler under pnpm.
 
 ## Start with a real query
 
-[Run your first MySQL query](./docs/quickstart.md): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
+[Run your first MySQL query](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart): start a disposable local database, execute a parameterized `SELECT`, and confirm the result. The guide then shows the complete Worker handler for an existing Hyperdrive binding.
 
 ## Choose an entry point
 

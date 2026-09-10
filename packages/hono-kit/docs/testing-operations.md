@@ -40,4 +40,4 @@ AWS, Firebase, AI Gateway, Stripe, and database clients are configured by the co
 ## Next step
 
 See [Testing APIs](./api-testing.md) for export tables, [CLI](./cli.md) for command details, or
-[API](./api.md) for the full package map.
+[API](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/api) for the full package map.

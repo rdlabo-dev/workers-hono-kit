@@ -4,7 +4,7 @@ title: Catch timezone bugs with ESLint
 
 Keep new Cloudflare Workers code on the same timezone policy. Pair `@rdlabo/workers-timezone` with `@rdlabo/eslint-plugin-rules` to catch host-local `Date` / `Intl` operations and request-scoped initialization.
 
-For a runnable demo of both packages, start with [Try conversions and lint](./quickstart.md).
+For a runnable demo of both packages, start with [Try conversions and lint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart).
 
 ## Enable the companion preset
 
@@ -95,4 +95,4 @@ npx eslint 'src/**/*.ts' --max-warnings 0
 
 Adjust the source path for your app. Keep timezone tests for DST and calendar boundaries: static checks cover recognizable operations, not every dynamic value.
 
-See the [Date / Intl rule](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone), [initialization rule](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/initialize-timezone-at-module-scope), and [timezone behavior](./timezones.md).
+See the [Date / Intl rule](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/no-implicit-timezone), [initialization rule](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/rules/initialize-timezone-at-module-scope), and [timezone behavior](https://docs.rdlabo.dev/projects/workers-timezone/docs/timezones).

@@ -42,5 +42,5 @@ Mount `createMaintenanceMiddleware()` after CORS and before container or databas
 
 ## Next step
 
-Continue to [Data Layer](./data-layer.md) for MySQL and Hyperdrive, or [API](./api.md) for the full
+Continue to [Data Layer](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer) for MySQL and Hyperdrive, or [API](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/api) for the full
 export list.

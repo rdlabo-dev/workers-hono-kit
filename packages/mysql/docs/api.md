@@ -5,7 +5,7 @@ title: API
 # API
 
 Public exports are grouped by import path. The installed TypeScript declarations provide the full
-generic signatures. Start with [Runtime](./runtime.md) for lifecycle and retry behavior.
+generic signatures. Start with [Runtime](https://docs.rdlabo.dev/projects/workers-mysql/docs/runtime) for lifecycle and retry behavior.
 
 ## `@rdlabo/workers-mysql`
 
@@ -23,7 +23,7 @@ Accepts `{ orm, replica }` and returns `Database<TDrizzle>`. The caller owns the
 #### `function` hyperdriveConnectionOptions
 
 `hyperdriveConnectionOptions(hyperdrive, extra?)` creates mysql2 options from a structural
-`HyperdriveLike` binding. See [Drizzle and dates](./drizzle.md) for defaults.
+`HyperdriveLike` binding. See [Drizzle and dates](https://docs.rdlabo.dev/projects/workers-mysql/docs/drizzle) for defaults.
 
 #### `function` withMysqlConnections
 
@@ -58,7 +58,7 @@ Configuration/secret resolution is for Node.js tooling; column helpers are used 
 
 Node.js only: `baselineMigrations`, `readBaselineEntry`, and `resolveDbSecret`.
 Types: `BaselineMigrationsOptions`, `BaselineResult`, `BaselineEntry`, and `ResolvedDbSecret`.
-See the safety requirements in [Migrations and testing](./tooling.md).
+See the safety requirements in [Migrations and testing](https://docs.rdlabo.dev/projects/workers-mysql/docs/tooling).
 
 ## `@rdlabo/workers-mysql/testing`
 

@@ -115,4 +115,4 @@ Lint should pass again; the added final line prints `2026-01-02`.
 
 ## 4. Use it in your app
 
-Follow [application setup](../README.md) to choose the default timezone, then [enable ESLint in CI](./eslint.md). See [Timezones and calendar dates](./timezones.md) for per-user settings, DST, and database boundaries.
+Follow [application setup](https://docs.rdlabo.dev/projects/workers-timezone/docs/readme) to choose the default timezone, then [enable ESLint in CI](https://docs.rdlabo.dev/projects/workers-timezone/docs/eslint). See [Timezones and calendar dates](https://docs.rdlabo.dev/projects/workers-timezone/docs/timezones) for per-user settings, DST, and database boundaries.

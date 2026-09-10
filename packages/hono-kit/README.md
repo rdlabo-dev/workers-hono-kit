@@ -4,7 +4,7 @@ Shared Hono building blocks for Cloudflare Workers APIs: weak ETags, NestJS-shap
 error bodies, Firebase auth middleware, AWS helpers, AI Gateway wiring, Stripe, KV, queues,
 realtime, and offline contracts.
 
-[Try a Hono API locally](./docs/quickstart.md): send a health request, inspect its weak ETag, and see the missing-route JSON response. No Cloudflare account or open port is needed for the first exercise.
+[Try a Hono API locally](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/quickstart): send a health request, inspect its weak ETag, and see the missing-route JSON response. No Cloudflare account or open port is needed for the first exercise.
 
 ## Install
 

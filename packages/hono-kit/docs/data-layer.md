@@ -109,6 +109,6 @@ MySQL package and `drizzle-orm`, including consumers of non-DB helpers such as F
 
 ## Next step
 
-Continue to [Realtime and Offline](./realtime-offline.md), or see
+Continue to [Realtime and Offline](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/realtime-offline), or see
 [`@rdlabo/workers-mysql`](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme) for the
 standalone package guides.

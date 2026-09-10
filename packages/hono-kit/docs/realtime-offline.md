@@ -33,5 +33,5 @@ Journal helpers enforce cursor coverage, retention, mutation transactions, and r
 
 ## Next step
 
-Continue to [Testing and Operations](./testing-operations.md), or [Offline API](./api-offline.md) for
+Continue to [Testing and Operations](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/testing-operations), or [Offline API](./api-offline.md) for
 converter and wire export details.

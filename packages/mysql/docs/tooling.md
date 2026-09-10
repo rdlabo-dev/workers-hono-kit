@@ -48,4 +48,4 @@ database names. `createPoolDatabase({ pool, orm })` uses one pool for reads/writ
 on `dispose()`. `createNoopDatabase()` returns empty reads and throws on unexpected writes or
 transactions; it is a stub, not an acceptance test against MySQL.
 
-See [API](./api.md) for the available types.
+See [API](https://docs.rdlabo.dev/projects/workers-mysql/docs/api) for the available types.

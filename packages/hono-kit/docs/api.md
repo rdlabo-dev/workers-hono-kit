@@ -2,10 +2,10 @@
 
 Entry-point map for the Hono kit and the standalone MySQL and timezone packages.
 
-- [HTTP and Authentication](./http-auth.md)
-- [Data Layer](./data-layer.md)
-- [Realtime and Offline](./realtime-offline.md)
-- [Testing and Operations](./testing-operations.md)
+- [HTTP and Authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth)
+- [Data Layer](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer)
+- [Realtime and Offline](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/realtime-offline)
+- [Testing and Operations](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/testing-operations)
 
 ## Standalone packages
 
@@ -20,16 +20,16 @@ Entry-point map for the Hono kit and the standalone MySQL and timezone packages.
 
 ## Hono kit subpaths
 
-| Entry point                              | Description                                                              | Reference                                     |
-| ---------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------- |
-| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for the MySQL package.                            | [DB](./api-db.md)                             |
-| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility re-export of the MySQL package.                 | [DB](./api-db.md)                             |
-| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export; requires `@rdlabo/workers-timezone`. | [Business time](./api-business-time.md)       |
-| `@rdlabo/workers-hono-kit/offline`       | Table-agnostic REST/DB method converters and replica wire helpers.       | [Offline](./api-offline.md)                   |
-| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers.                              | [Realtime and Offline](./realtime-offline.md) |
-| `@rdlabo/workers-hono-kit/testing`       | Drizzle-backed test DB, fakes, fixtures, and binding doubles.            | [Testing](./api-testing.md)                   |
+| Entry point                              | Description                                                              | Reference                                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `@rdlabo/workers-hono-kit/mysql`         | Hono container adapter for the MySQL package.                            | [DB](./api-db.md)                                                                               |
+| `@rdlabo/workers-hono-kit/db`            | Deprecated compatibility re-export of the MySQL package.                 | [DB](./api-db.md)                                                                               |
+| `@rdlabo/workers-hono-kit/business-time` | Deprecated compatibility re-export; requires `@rdlabo/workers-timezone`. | [Business time](./api-business-time.md)                                                         |
+| `@rdlabo/workers-hono-kit/offline`       | Table-agnostic REST/DB method converters and replica wire helpers.       | [Offline](./api-offline.md)                                                                     |
+| `@rdlabo/workers-hono-kit/realtime`      | Durable Object WebSocket and retry helpers.                              | [Realtime and Offline](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/realtime-offline) |
+| `@rdlabo/workers-hono-kit/testing`       | Drizzle-backed test DB, fakes, fixtures, and binding doubles.            | [Testing](./api-testing.md)                                                                     |
 
 ## Next step
 
 Open the reference linked above for each entry point, or start from
-[HTTP and Authentication](./http-auth.md) for feature-level examples.
+[HTTP and Authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth) for feature-level examples.

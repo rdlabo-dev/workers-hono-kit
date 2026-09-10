@@ -7,7 +7,7 @@ title: Migration
 From kit `0.12.0`, `@rdlabo/workers-hono-kit/business-time` is a deprecated re-export of this
 package. Install `@rdlabo/workers-timezone` directly and change the import path. Existing function
 names remain available; new code can use `toLocalDateTime`, `localDateTimeToInstant`, and the other
-timezone-neutral names in [API](./api.md).
+timezone-neutral names in [API](https://docs.rdlabo.dev/projects/workers-timezone/docs/api).
 
 ## Behavior changes
 

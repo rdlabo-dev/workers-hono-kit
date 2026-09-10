@@ -46,4 +46,4 @@ This package does not configure MySQL. `@rdlabo/workers-mysql` has independent f
 wire helpers; changing the business timezone here does not change those helpers, mysql2 options,
 or the MySQL session timezone. Keep instant storage and user-facing calendar conversion separate.
 
-See [API](./api.md) and [Migration](./migration.md).
+See [API](https://docs.rdlabo.dev/projects/workers-timezone/docs/api) and [Migration](https://docs.rdlabo.dev/projects/workers-timezone/docs/migration).

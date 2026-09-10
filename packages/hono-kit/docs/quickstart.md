@@ -6,7 +6,7 @@ Give a Hono API consistent HTTP behavior: a health response with a weak ETag and
 
 ## 1. Create a small project
 
-Use Node.js 24 and npm for this exercise. The commands pin the documented kit release. npm installs its required peers; package managers configured to omit peers must follow the [installation requirements](../README.md).
+Use Node.js 24 and npm for this exercise. The commands pin the documented kit release. npm installs its required peers; package managers configured to omit peers must follow the [installation requirements](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/getting-started).
 
 ```sh
 mkdir hono-kit-demo
@@ -55,9 +55,9 @@ You have checked the HTTP behavior added by the kit. This exercise does not prov
 
 ## 3. Move into your application
 
-Keep the middleware and route registrations, remove the demonstration requests, and export `app` as your Worker handler. Continue with [HTTP and authentication](./http-auth.md). Add the [MySQL adapter](./data-layer.md) only when the application needs a database.
+Keep the middleware and route registrations, remove the demonstration requests, and export `app` as your Worker handler. Continue with [HTTP and authentication](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/http-auth). Add the [MySQL adapter](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer) only when the application needs a database.
 
-Existing kit users should check [the 0.12 import migration](./data-layer.md) before upgrading. The old `/db` and `/business-time` paths are compatibility exports; new integrations use the standalone packages.
+Existing kit users should check [the 0.12 import migration](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer) before upgrading. The old `/db` and `/business-time` paths are compatibility exports; new integrations use the standalone packages.
 
 ## Next steps
 

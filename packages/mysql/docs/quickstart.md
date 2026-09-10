@@ -105,6 +105,6 @@ export default {
 };
 ```
 
-Use `query()` for primary SELECTs and `read()` for replica reads. Add an ORM schema only when you need typed table queries. [Runtime](./runtime.md) explains invocation lifetime, snapshot reads, and retries; [Drizzle and dates](./drizzle.md) covers column and storage behavior.
+Use `query()` for primary SELECTs and `read()` for replica reads. Add an ORM schema only when you need typed table queries. [Runtime](https://docs.rdlabo.dev/projects/workers-mysql/docs/runtime) explains invocation lifetime, snapshot reads, and retries; [Drizzle and dates](https://docs.rdlabo.dev/projects/workers-mysql/docs/drizzle) covers column and storage behavior.
 
 For Hono request containers, add the [kit `/mysql` adapter](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/data-layer). Do not wrap already-retrying database methods in another retry loop. A transaction callback may run again, so keep email, payments, and other external side effects outside it.

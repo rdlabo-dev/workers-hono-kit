@@ -7,7 +7,7 @@ title: Migration
 The database utilities are standalone from kit `0.12.0`. Install `@rdlabo/workers-mysql` directly;
 keep `@rdlabo/workers-hono-kit` only if using its Hono integration. `mysql2` is included, while
 `drizzle-orm` remains an optional peer for `/drizzle` and `/testing`. TypeScript consumers need
-the Node declarations described in the [README](../README.md).
+the Node declarations described in the [README](https://docs.rdlabo.dev/projects/workers-mysql/docs/readme).
 
 | Previous import                        | New import                         |
 | -------------------------------------- | ---------------------------------- |
@@ -25,4 +25,4 @@ migration code out of the Worker bundle. Rename `honoDrizzleConfig` to `workersD
 updating configuration.
 
 No Hono dependency is required by this database package. The fixed-JST storage contract also
-remains separate from configurable business timezones; see [Drizzle and dates](./drizzle.md).
+remains separate from configurable business timezones; see [Drizzle and dates](https://docs.rdlabo.dev/projects/workers-mysql/docs/drizzle).

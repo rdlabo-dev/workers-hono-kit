@@ -4,7 +4,7 @@ Timezone-aware calendar and wall-clock utilities for Cloudflare Workers. Workers
 instants; this package lets an application select an IANA timezone once per isolate and handles DST
 when converting between instants and local dates.
 
-Try the [conversion demo](./docs/quickstart.md). We recommend pairing the library with [ESLint checks](./docs/eslint.md) to catch implicit timezone usage.
+Try the [conversion demo](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart). We recommend pairing the library with [ESLint checks](https://docs.rdlabo.dev/projects/workers-timezone/docs/eslint) to catch implicit timezone usage.
 
 ## Install
 

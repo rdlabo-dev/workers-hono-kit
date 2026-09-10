@@ -5,7 +5,7 @@ title: API
 # API
 
 All exports below come from `@rdlabo/workers-timezone`. `timeZone?` uses the initialized default,
-or `Asia/Tokyo` before initialization. See [Timezones](./timezones.md) for error and DST behavior.
+or `Asia/Tokyo` before initialization. See [Timezones](https://docs.rdlabo.dev/projects/workers-timezone/docs/timezones) for error and DST behavior.
 
 ## Configuration
 

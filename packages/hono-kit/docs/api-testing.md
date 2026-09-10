@@ -39,6 +39,6 @@ For candidate tarball installation, see [Development](./development.md).
 
 ## Next step
 
-Return to [Testing and Operations](./testing-operations.md), or see
+Return to [Testing and Operations](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/testing-operations), or see
 [`@rdlabo/workers-mysql/testing`](https://docs.rdlabo.dev/projects/workers-mysql/docs/tooling) for
 the canonical DB test helpers.

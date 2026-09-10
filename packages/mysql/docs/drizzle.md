@@ -38,4 +38,4 @@ date. Validate user input separately; it is not equivalent to timezone's stricte
 For update timestamps, `jstOnUpdateNow(fsp?)` supplies the SQL expression used with
 `.$onUpdateFn(() => jstOnUpdateNow(6))`. Review both generated migrations and server timezone.
 
-See [Runtime](./runtime.md), [Tooling](./tooling.md), and [API](./api.md).
+See [Runtime](https://docs.rdlabo.dev/projects/workers-mysql/docs/runtime), [Tooling](https://docs.rdlabo.dev/projects/workers-mysql/docs/tooling), and [API](https://docs.rdlabo.dev/projects/workers-mysql/docs/api).

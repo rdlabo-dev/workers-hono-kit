@@ -10,7 +10,7 @@ Choose the layer you need; nothing here forces a single application stack.
 | Timezone           | [`@rdlabo/workers-timezone`](https://docs.rdlabo.dev/projects/workers-timezone/docs/readme)              | IANA calendar and wall-clock conversion without Hono or MySQL                                    |
 | Development checks | [`@rdlabo/eslint-plugin-rules`](https://docs.rdlabo.dev/projects/eslint-plugin-rules/docs/configuration) | Companion `workers-timezone/recommended` policy for timezone-safe `Date` / `Intl` usage          |
 
-For a first result, choose a runnable guide: [Hono HTTP](./packages/hono-kit/docs/quickstart.md), [a MySQL query](./packages/mysql/docs/quickstart.md), or [timezone conversions and ESLint](./packages/timezone/docs/quickstart.md). We recommend adopting the timezone library and its lint preset together; the separate installation keeps runtime and development dependencies distinct.
+For a first result, choose a runnable guide: [Hono HTTP](https://docs.rdlabo.dev/projects/workers-hono-kit/docs/quickstart), [a MySQL query](https://docs.rdlabo.dev/projects/workers-mysql/docs/quickstart), or [timezone conversions and ESLint](https://docs.rdlabo.dev/projects/workers-timezone/docs/quickstart). We recommend adopting the timezone library and its lint preset together; the separate installation keeps runtime and development dependencies distinct.
 
 The workspace root npm package (`workers-hono-kit`) is private and is not published to the registry.
 
