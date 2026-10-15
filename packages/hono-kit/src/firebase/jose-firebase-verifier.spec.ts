@@ -192,6 +192,19 @@ describe('JoseFirebaseVerifier (Firebase ID-token validation requirements)', () 
     });
   });
 
+  describe('getUserByEmail', () => {
+    it('requires an Identity Toolkit client', async () => {
+      const { verifier } = await makeVerifier();
+      await expect(verifier.getUserByEmail('a@b.c')).rejects.toThrow('Identity Toolkit not configured');
+    });
+    it('delegates email lookup with the verifier clock', async () => {
+      const lookupByEmail = vi.fn(async () => ({ uid: 'uid1', email: 'a@b.c' }));
+      const { verifier } = await makeVerifier({ lookupByEmail } as unknown as IdentityToolkit);
+      await expect(verifier.getUserByEmail('a@b.c')).resolves.toEqual({ uid: 'uid1', email: 'a@b.c' });
+      expect(lookupByEmail).toHaveBeenCalledWith('a@b.c', expect.any(Number));
+    });
+  });
+
   describe('getUsers', () => {
     it('throws when no Identity Toolkit is configured', async () => {
       const { verifier } = await makeVerifier();

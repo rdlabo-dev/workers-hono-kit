@@ -227,7 +227,7 @@ export { getTemporaryCredentials } from './aws/sts.js';
 export type { GetTemporaryCredentialsOptions, StsCredentials } from './aws/sts.js';
 
 // firebase
-export type { DecodedIdToken, FirebaseVerifier } from './firebase/firebase-verifier.js';
+export type { DecodedIdToken, FirebaseVerifier, FirebaseUserRecord } from './firebase/firebase-verifier.js';
 export {
   FirebaseIdTokenValidationError,
   JoseFirebaseVerifier,

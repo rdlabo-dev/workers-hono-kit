@@ -1,6 +1,6 @@
 import { jwtVerify } from 'jose';
 import type { CryptoKey, JWK, JWTVerifyGetKey, KeyObject } from 'jose';
-import type { DecodedIdToken, FirebaseVerifier } from './firebase-verifier.js';
+import type { DecodedIdToken, FirebaseVerifier, FirebaseUserRecord } from './firebase-verifier.js';
 import type { IdentityToolkit } from './identity-toolkit.js';
 
 /**
@@ -132,13 +132,25 @@ export class JoseFirebaseVerifier implements FirebaseVerifier {
   }
 
   /**
+   * Look up an account by its primary email using the shared Identity Toolkit client.
+   * @param email - Primary email address.
+   * @returns uid/email or null if absent; provider failures throw.
+   */
+  async getUserByEmail(email: string): Promise<FirebaseUserRecord | null> {
+    if (!this.opts.identity) {
+      throw new Error('Identity Toolkit not configured');
+    }
+    return this.opts.identity.lookupByEmail(email, this.nowSeconds());
+  }
+
+  /**
    * Look up a user record by uid via the Identity Toolkit REST API.
    *
    * @param uid - The user's unique id.
    * @returns The user's `uid` and optional `email`, or `null` when the user does not exist.
    * @throws If no Identity Toolkit client was configured on this verifier.
    */
-  async getUser(uid: string): Promise<{ uid: string; email?: string } | null> {
+  async getUser(uid: string): Promise<FirebaseUserRecord | null> {
     if (!this.opts.identity) {
       throw new Error('Identity Toolkit not configured');
     }
@@ -156,7 +168,7 @@ export class JoseFirebaseVerifier implements FirebaseVerifier {
    *   simply absent from the result (never `null` entries).
    * @throws If no Identity Toolkit client was configured on this verifier.
    */
-  async getUsers(uids: string[]): Promise<{ uid: string; email?: string }[]> {
+  async getUsers(uids: string[]): Promise<FirebaseUserRecord[]> {
     if (!this.opts.identity) {
       throw new Error('Identity Toolkit not configured');
     }
