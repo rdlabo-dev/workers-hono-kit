@@ -29,13 +29,15 @@ For candidate tarball installation, see [Development](./development.md).
 
 | Export                                                                                                                              | Description                                                                                                           |
 | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `FakeFirebaseVerifier`                                                                                                              | In-memory `FirebaseVerifier` for offline route tests (`register` / `verifyIdToken` / `getUser` / `deleteUser`).       |
+| `FakeFirebaseVerifier`                                                                                                              | In-memory token verification and account lookup, including `getUserByEmail` and configurable `users`.                 |
 | `authHeaders(token, opts?)`                                                                                                         | Build interceptor-compatible auth headers for requests.                                                               |
 | `registerFirebaseToken(firebase, uid, record?, token?)`                                                                             | Register a token in a `FakeFirebaseVerifier` (no DB).                                                                 |
 | `provisionUser(pool, firebase, opts)`                                                                                               | Register a token and provision a conventional `users(id, firebase_uid, agree)` row; returns the user id (idempotent). |
 | `configurableFake(impl, name?)`                                                                                                     | Build a test double from a partial implementation; un-stubbed members throw `"${name}.${method} not configured"`.     |
 | `fakeApiList` / `fakePaymentIntent` / `fakeStripeEvent` / `fakeCheckoutSession` / `fakeCustomer` / `fakePrice` / `fakeSubscription` | Stripe object fixtures with sensible defaults, overridable per test.                                                  |
 | `fakeKv()` / `fakeQueue()` / `FakeQueue`                                                                                            | In-memory Workers KV / Queues producer doubles (`sent` + `batchCount` on queues for subrequest-bound assertions).     |
+
+`FakeFirebaseVerifier.register()` seeds an account only when its UID is not already configured. Update `users` directly to model account changes without changing issued tokens. For compatibility, UID lookups return `{ uid }` for unconfigured UIDs; `deleteUser()` only records calls in `deleted`.
 
 ## Next step
 
