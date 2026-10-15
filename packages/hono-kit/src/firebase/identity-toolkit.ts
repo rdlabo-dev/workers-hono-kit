@@ -1,4 +1,6 @@
 import { SignJWT, importPKCS8 } from 'jose';
+import { z } from 'zod';
+import type { FirebaseUserRecord } from './firebase-verifier.js';
 
 /**
  * Minimal service-account credential consumed by {@link IdentityToolkit}.
@@ -90,28 +92,60 @@ export class IdentityToolkit {
     return json.access_token;
   }
 
-  /**
-   * Call the `accounts:lookup` endpoint for a single chunk of `localId`s.
-   *
-   * @param localIds - Up to {@link LOOKUP_CHUNK_SIZE} `localId`s to look up in one request.
-   * @param nowSeconds - The current Unix time in seconds, used for access-token caching.
-   * @returns The raw `users` entries returned by the endpoint (empty when the request is
-   *   unsuccessful or no matching users are returned).
-   * @throws If acquiring an access token fails.
-   * @internal
-   */
-  private async lookupChunk(localIds: string[], nowSeconds: number): Promise<{ localId: string; email?: string }[]> {
+  /** Fetch account attributes; provider failures are distinct from absent users. */
+  private async lookupAccounts(
+    criteria: { localId: string[] } | { email: string[] },
+    nowSeconds: number,
+  ): Promise<FirebaseUserRecord[]> {
     const token = await this.getAccessToken(nowSeconds);
     const res = await fetch(`${IDENTITY_TOOLKIT}/projects/${this.sa.project_id}/accounts:lookup`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ localId: localIds }),
+      body: JSON.stringify(criteria),
     });
     if (!res.ok) {
-      return [];
+      if (res.status === 400 && 'email' in criteria) {
+        const error = z
+          .object({ error: z.object({ message: z.string() }) })
+          .safeParse(await res.json().catch(() => undefined));
+        if (error.success && error.data.error.message === 'INVALID_EMAIL') {
+          return [];
+        }
+      }
+      throw new Error(`Identity Toolkit lookup failed: ${res.status}`);
     }
-    const json = (await res.json()) as { users?: { localId: string; email?: string }[] };
-    return json.users ?? [];
+    const parsed = z
+      .object({
+        users: z
+          .array(
+            z.object({
+              localId: z.string().min(1).max(128),
+              email: z.string().optional(),
+              disabled: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .safeParse(await res.json().catch(() => undefined));
+    if (!parsed.success) {
+      throw new Error('Invalid Identity Toolkit lookup response');
+    }
+    return (parsed.data.users ?? []).map(({ localId, ...attributes }) => ({ uid: localId, ...attributes }));
+  }
+
+  /**
+   * Look up a primary email (case-insensitive). Missing/invalid emails return null.
+   * @param email - Primary email; surrounding whitespace is ignored.
+   * @param nowSeconds - Current Unix time used for the shared OAuth token cache.
+   * @returns Account attributes, including disabled; provider failures throw.
+   */
+  async lookupByEmail(email: string, nowSeconds: number): Promise<FirebaseUserRecord | null> {
+    const normalized = email.trim();
+    if (!normalized) {
+      return null;
+    }
+    const users = await this.lookupAccounts({ email: [normalized] }, nowSeconds);
+    return users.find((user) => user.email?.toLowerCase() === normalized.toLowerCase()) ?? null;
   }
 
   /**
@@ -119,13 +153,11 @@ export class IdentityToolkit {
    *
    * @param uid - The user's unique id (`localId`).
    * @param nowSeconds - The current Unix time in seconds, used for access-token caching.
-   * @returns The user's `uid` and optional `email`, or `null` when the request is unsuccessful
-   *   or no matching user is returned.
-   * @throws If acquiring an access token fails.
+   * @returns The user's `uid` and optional `email`, or `null` when no matching user is returned.
+   * @throws If acquiring an access token or looking up accounts fails.
    */
-  async lookup(uid: string, nowSeconds: number): Promise<{ uid: string; email?: string } | null> {
-    const users = await this.lookupChunk([uid], nowSeconds);
-    return users.length > 0 ? { uid: users[0].localId, email: users[0].email } : null;
+  async lookup(uid: string, nowSeconds: number): Promise<FirebaseUserRecord | null> {
+    return (await this.lookupMany([uid], nowSeconds))[0] ?? null;
   }
 
   /**
@@ -140,19 +172,18 @@ export class IdentityToolkit {
    * @returns The `uid`/`email` of every matching user. Uids Firebase does not recognize are
    *   simply absent from the result (never `null` entries), so callers can treat "missing from
    *   the result" as "not found/invalid".
-   * @throws If acquiring an access token fails.
+   * @throws If acquiring an access token or looking up accounts fails.
    */
-  async lookupMany(uids: string[], nowSeconds: number): Promise<{ uid: string; email?: string }[]> {
+  async lookupMany(uids: string[], nowSeconds: number): Promise<FirebaseUserRecord[]> {
     if (uids.length === 0) {
       return [];
     }
-    const results: { uid: string; email?: string }[] = [];
-    for (let i = 0; i < uids.length; i += LOOKUP_CHUNK_SIZE) {
-      const chunk = uids.slice(i, i + LOOKUP_CHUNK_SIZE);
-      const users = await this.lookupChunk(chunk, nowSeconds);
-      for (const user of users) {
-        results.push({ uid: user.localId, email: user.email });
-      }
+    const results: FirebaseUserRecord[] = [];
+    const unique = [...new Set(uids)];
+    for (let i = 0; i < unique.length; i += LOOKUP_CHUNK_SIZE) {
+      const chunk = unique.slice(i, i + LOOKUP_CHUNK_SIZE);
+      const users = await this.lookupAccounts({ localId: chunk }, nowSeconds);
+      results.push(...users.filter((user) => chunk.includes(user.uid)));
     }
     return results;
   }

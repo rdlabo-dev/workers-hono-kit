@@ -33,6 +33,13 @@ export class FakeFirebaseVerifier implements FirebaseVerifier {
     return record;
   }
 
+  /** Find a registered fake account by its primary email. */
+  async getUserByEmail(email: string): Promise<{ uid: string; email?: string } | null> {
+    const normalized = email.trim().toLowerCase();
+    const record = [...this.tokens.values()].find((user) => user.email?.toLowerCase() === normalized);
+    return record ? { uid: record.uid, email: record.email } : null;
+  }
+
   /** Return a minimal fake user. */
   async getUser(uid: string): Promise<{ uid: string; email?: string } | null> {
     return { uid };

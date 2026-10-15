@@ -22,7 +22,9 @@ app.get('/items', validate('query', querySchema), async (c) => {
 
 ## Authentication
 
-`createAuthMiddleware()` reads a token header, verifies a Firebase ID token, optionally resolves the application user ID, and stores the result on the Hono context. Use `createRemoteFirebaseVerifier(projectId)` for cached remote JWKS verification or `createServiceAccountVerifier()` when Identity Toolkit `getUser` and `deleteUser` operations are required.
+`createAuthMiddleware()` reads a token header, verifies a Firebase ID token, optionally resolves the application user ID, and stores the result on the Hono context. Use `createRemoteFirebaseVerifier(projectId)` for cached remote JWKS verification or `createServiceAccountVerifier()` when Identity Toolkit `getUser`, `getUsers`, `getUserByEmail`, and `deleteUser` operations are required.
+
+`getUser`, `getUsers`, and `getUserByEmail` return `FirebaseUserRecord` (`uid`, optional `email` and `disabled`). The kit returns disabled accounts; callers decide whether to reject them. Account creation time is not fetched. Email lookup uses the primary email and shares the OAuth token cache with UID lookups. Missing users return `null` (or are omitted from batches), while provider HTTP failures throw, including UID lookups that previously returned an empty result on failure.
 
 Keep identity, reauthentication, and feature credential failures distinct with the stable auth-failure body helpers.
 

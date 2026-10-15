@@ -19,6 +19,16 @@ export interface DecodedIdToken {
   [claim: string]: unknown;
 }
 
+/** Current account attributes returned by Firebase Authentication lookup. */
+export interface FirebaseUserRecord {
+  /** Stable Firebase account identifier. */
+  uid: string;
+  /** Current primary email, when configured. */
+  email?: string;
+  /** Whether sign-in is disabled for this account. */
+  disabled?: boolean;
+}
+
 /**
  * Abstract authentication boundary that replaces the `firebase-admin` Auth surface
  * (`verifyIdToken` / `getUser` / `deleteUser`) for environments where the Node SDK cannot
@@ -41,6 +51,9 @@ export interface FirebaseVerifier {
    * @throws If the token signature, issuer, audience, expiry, or other required claims are invalid.
    */
   verifyIdToken(idToken: string): Promise<DecodedIdToken>;
+  /** Look up an account by primary email; return null if absent and throw on provider failures. */
+  getUserByEmail(email: string): Promise<FirebaseUserRecord | null>;
+
   /**
    * Look up a user record by uid.
    *
@@ -50,7 +63,7 @@ export interface FirebaseVerifier {
    * @returns The user's `uid` and optional `email`, or `null` when the user does not exist.
    * @throws If the backing user-management service is not configured or the lookup fails.
    */
-  getUser(uid: string): Promise<{ uid: string; email?: string } | null>;
+  getUser(uid: string): Promise<FirebaseUserRecord | null>;
   /**
    * Look up multiple user records by uid in as few requests as the backing service allows.
    *
@@ -62,7 +75,7 @@ export interface FirebaseVerifier {
    *   simply absent from the result (never `null` entries).
    * @throws If the backing user-management service is not configured or the lookup fails.
    */
-  getUsers(uids: string[]): Promise<{ uid: string; email?: string }[]>;
+  getUsers(uids: string[]): Promise<FirebaseUserRecord[]>;
   /**
    * Delete a user by uid.
    *

@@ -28,6 +28,86 @@ describe('IdentityToolkit', () => {
     vi.restoreAllMocks();
   });
 
+  it('lookupByEmail uses the primary email and shares the OAuth token cache with UID lookups', async () => {
+    const request = stubFetch((url) =>
+      url === TOKEN_URL
+        ? tokenResponse()
+        : Response.json({
+            users: [
+              { localId: 'other', email: 'other@example.com' },
+              { localId: 'uid1', email: 'User@example.com' },
+            ],
+          }),
+    );
+    const client = new IdentityToolkit(await makeServiceAccount());
+    await expect(client.lookupByEmail(' user@example.com ', NOW)).resolves.toEqual({
+      uid: 'uid1',
+      email: 'User@example.com',
+    });
+    const call = request.mock.calls.find(([url]) => url.endsWith('accounts:lookup'));
+    expect(JSON.parse(call?.[1]?.body as string)).toEqual({ email: ['user@example.com'] });
+    await client.lookup('uid1', NOW + 1);
+    expect(request.mock.calls.filter(([url]) => url === TOKEN_URL)).toHaveLength(1);
+  });
+
+  it('lookupByEmail returns null for missing or invalid addresses', async () => {
+    const client = new IdentityToolkit(await makeServiceAccount());
+    const request = stubFetch((url) => (url === TOKEN_URL ? tokenResponse() : Response.json({ users: [] })));
+    await expect(client.lookupByEmail(' ', NOW)).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+    await expect(client.lookupByEmail('missing@example.com', NOW)).resolves.toBeNull();
+    stubFetch(() => Response.json({ error: { message: 'INVALID_EMAIL' } }, { status: 400 }));
+    await expect(client.lookupByEmail('invalid', NOW)).resolves.toBeNull();
+  });
+
+  it.each([400, 403, 429, 500])('lookupByEmail throws for provider failures (%i)', async (status) => {
+    stubFetch((url) =>
+      url === TOKEN_URL
+        ? tokenResponse()
+        : Response.json({ error: { message: 'CONFIGURATION_NOT_FOUND' } }, { status }),
+    );
+    const client = new IdentityToolkit(await makeServiceAccount());
+    await expect(client.lookupByEmail('user@example.com', NOW)).rejects.toThrow(
+      `Identity Toolkit lookup failed: ${status}`,
+    );
+  });
+
+  it('lookupByEmail rejects malformed records without including account values', async () => {
+    stubFetch((url) =>
+      url === TOKEN_URL ? tokenResponse() : Response.json({ users: [{ email: 'private@example.com' }] }),
+    );
+    const client = new IdentityToolkit(await makeServiceAccount());
+    await expect(client.lookupByEmail('private@example.com', NOW)).rejects.toThrow(
+      'Invalid Identity Toolkit lookup response',
+    );
+  });
+
+  it('returns disabled metadata for UID, batch and email lookups', async () => {
+    stubFetch((url) =>
+      url === TOKEN_URL
+        ? tokenResponse()
+        : Response.json({
+            users: [{ localId: 'uid1', email: 'a@b.c', disabled: true }],
+          }),
+    );
+    const client = new IdentityToolkit(await makeServiceAccount());
+    const expected = { uid: 'uid1', email: 'a@b.c', disabled: true };
+    await expect(client.lookup('uid1', NOW)).resolves.toEqual(expected);
+    await expect(client.lookupMany(['uid1', 'uid1'], NOW)).resolves.toEqual([expected]);
+    await expect(client.lookupByEmail('a@b.c', NOW)).resolves.toEqual(expected);
+  });
+
+  it('uses global fetch without a client receiver in Workers', async () => {
+    vi.stubGlobal('fetch', async function (this: unknown, input: Parameters<typeof fetch>[0]) {
+      if (this !== undefined && this !== globalThis) {
+        throw new TypeError('Illegal invocation');
+      }
+      return input === TOKEN_URL ? tokenResponse() : Response.json({ users: [] });
+    });
+    const client = new IdentityToolkit(await makeServiceAccount());
+    await expect(client.lookup('missing', NOW)).resolves.toBeNull();
+  });
+
   it('lookup はアクセストークンを取得してユーザーを返す', async () => {
     const fetchMock = stubFetch((url) => {
       if (url === TOKEN_URL) {
@@ -52,10 +132,10 @@ describe('IdentityToolkit', () => {
     await expect(client.lookup('missing', NOW)).resolves.toBeNull();
   });
 
-  it('lookup が 4xx なら null', async () => {
+  it('lookup throws on provider failure instead of treating it as absence', async () => {
     stubFetch((url) => (url === TOKEN_URL ? tokenResponse() : new Response('forbidden', { status: 403 })));
     const client = new IdentityToolkit(await makeServiceAccount());
-    await expect(client.lookup('uid1', NOW)).resolves.toBeNull();
+    await expect(client.lookup('uid1', NOW)).rejects.toThrow('Identity Toolkit lookup failed: 403');
   });
 
   it('アクセストークンを isolate 内でキャッシュする（token 交換は 1 回）', async () => {
