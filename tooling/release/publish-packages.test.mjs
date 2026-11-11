@@ -500,3 +500,34 @@ test('CLI arguments enforce stable and candidate tag modes', () => {
     /requires --suffix/,
   );
 });
+
+test('a beta publish conflict succeeds only if the identical archive is visible', () => {
+  const suffix = 'beta.pr42.shaaaaaaaaaaaaa';
+  for (const matching of [true, false]) {
+    const state = fixture({ suffix });
+    let timezoneConflict = false;
+    const runner = commandRunner(state, (_command, args) => {
+      if (args[0] === 'view') {
+        if (timezoneConflict && args[1].includes('workers-timezone')) {
+          return {
+            status: 0,
+            stdout: JSON.stringify(matching ? sha512Integrity(join(state.directory, 'timezone.tgz')) : 'sha512-different'),
+            stderr: '',
+          };
+        }
+        return { status: 1, stdout: '', stderr: 'npm error code E404' };
+      }
+      if (basename(args[1]) === 'timezone.tgz') {
+        timezoneConflict = true;
+        return { status: 1, stdout: '', stderr: 'npm error code E409' };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    });
+    const publish = () => publishPackages({
+      directory: state.directory, manifests: state.manifests, tag: 'beta', suffix,
+      publish: true, commandRunner: runner, log() {},
+    });
+    if (matching) assert.deepEqual(publish().map(item => item.action), ['skip', 'published', 'published']);
+    else assert.throws(publish, /Published integrity mismatch/);
+  }
+});

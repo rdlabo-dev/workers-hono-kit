@@ -296,7 +296,7 @@ export function publishPackages({
   // or integrity error cannot leave a dependency-only partial release.
   for (const item of plan) {
     const identity = `${item.name}@${item.version}`;
-    const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json']);
+    const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json', '--prefer-online']);
     const remoteIntegrity = publishedIntegrity(view, identity);
     if (remoteIntegrity !== undefined) {
       if (remoteIntegrity !== item.integrity) {
@@ -325,7 +325,24 @@ export function publishPackages({
       '--tag',
       item.tag,
     ]);
-    if (result.status !== 0) fail(`npm publish failed for ${identity}: ${commandFailure(result)}`);
+    if (result.status !== 0) {
+      const conflict = /(?:^|\n)npm (?:error|ERR!) code E409(?:\s|$)/.test(result.stderr);
+      if (conflict) {
+        const clock = new Int32Array(new SharedArrayBuffer(4));
+        for (const delay of [0, 2000, 4000, 8000, 16000]) {
+          if (delay) Atomics.wait(clock, 0, 0, delay);
+          const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json', '--prefer-online']);
+          const integrity = publishedIntegrity(view, identity);
+          if (integrity === undefined) continue;
+          if (integrity !== item.integrity) fail(`Published integrity mismatch for ${identity}`);
+          item.action = 'skip';
+          log(`SKIP ${identity}: identical archive is already published`);
+          break;
+        }
+      }
+      if (item.action === 'skip') continue;
+      fail(`npm publish failed for ${identity}: ${commandFailure(result)}`);
+    }
     item.action = 'published';
     log(`PUBLISHED ${identity}`);
   }
