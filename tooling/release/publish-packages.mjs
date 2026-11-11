@@ -315,7 +315,15 @@ export function publishPackages({
   // or integrity error cannot leave a dependency-only partial release.
   for (const item of plan) {
     const identity = `${item.name}@${item.version}`;
-    const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json', '--prefer-online']);
+    const view = run(commandRunner, 'npm', [
+      'view',
+      identity,
+      'dist.integrity',
+      '--registry',
+      NPM_REGISTRY,
+      '--json',
+      '--prefer-online',
+    ]);
     const remoteIntegrity = publishedIntegrity(view, identity);
     if (remoteIntegrity !== undefined) {
       if (remoteIntegrity !== item.integrity) {
@@ -350,7 +358,15 @@ export function publishPackages({
         const clock = new Int32Array(new SharedArrayBuffer(4));
         for (const delay of conflict ? [0, 2000, 4000, 8000, 16000] : [0]) {
           if (delay) Atomics.wait(clock, 0, 0, delay);
-          const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json', '--prefer-online']);
+          const view = run(commandRunner, 'npm', [
+            'view',
+            identity,
+            'dist.integrity',
+            '--registry',
+            NPM_REGISTRY,
+            '--json',
+            '--prefer-online',
+          ]);
           const integrity = publishedIntegrity(view, identity);
           if (integrity === undefined) continue;
           if (integrity !== item.integrity) fail(`Published integrity mismatch for ${identity}`);

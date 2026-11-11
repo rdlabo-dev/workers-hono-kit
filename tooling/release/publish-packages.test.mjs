@@ -511,7 +511,9 @@ test('a beta publish conflict succeeds only if the identical archive is visible'
         if (timezoneConflict && args[1].includes('workers-timezone')) {
           return {
             status: 0,
-            stdout: JSON.stringify(matching ? sha512Integrity(join(state.directory, 'timezone.tgz')) : 'sha512-different'),
+            stdout: JSON.stringify(
+              matching ? sha512Integrity(join(state.directory, 'timezone.tgz')) : 'sha512-different',
+            ),
             stderr: '',
           };
         }
@@ -523,11 +525,21 @@ test('a beta publish conflict succeeds only if the identical archive is visible'
       }
       return { status: 0, stdout: '', stderr: '' };
     });
-    const publish = () => publishPackages({
-      directory: state.directory, manifests: state.manifests, tag: 'beta', suffix,
-      publish: true, commandRunner: runner, log() {},
-    });
-    if (matching) assert.deepEqual(publish().map(item => item.action), ['skip', 'published', 'published']);
+    const publish = () =>
+      publishPackages({
+        directory: state.directory,
+        manifests: state.manifests,
+        tag: 'beta',
+        suffix,
+        publish: true,
+        commandRunner: runner,
+        log() {},
+      });
+    if (matching)
+      assert.deepEqual(
+        publish().map((item) => item.action),
+        ['skip', 'published', 'published'],
+      );
     else assert.throws(publish, /Published integrity mismatch/);
   }
 });
