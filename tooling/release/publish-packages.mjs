@@ -61,6 +61,9 @@ function validatePublicManifest(manifest, description) {
   if (!isRecord(manifest.publishConfig) || manifest.publishConfig.access !== 'public') {
     fail(`${description} must set publishConfig.access to public`);
   }
+  if (Object.keys(manifest.publishConfig).some((key) => !['access', 'registry', 'tag'].includes(key))) {
+    fail(`${description} has an unexpected publishConfig key`);
+  }
   const registry = effectiveRegistry(manifest);
   if (registry !== NPM_REGISTRY) {
     fail(`${description} has an unexpected publish registry: ${String(registry)}`);
@@ -166,8 +169,24 @@ function validateTrustedReleaseTag(trusted, tag, suffix) {
 }
 
 function readArtifactManifest(path, commandRunner) {
-  const result = run(commandRunner, 'tar', ['-xOf', path, 'package/package.json']);
-  if (result.status !== 0) fail(`Could not read package/package.json from ${path}: ${commandFailure(result)}`);
+  const script = `
+    import { execFileSync } from 'node:child_process';
+    import { createRequire } from 'node:module';
+    import { mkdtempSync, rmSync } from 'node:fs';
+    import { join } from 'node:path';
+    import { tmpdir } from 'node:os';
+    const npmRoot = execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim();
+    const pacote = createRequire(import.meta.url)(npmRoot + '/npm/node_modules/pacote');
+    const cache = mkdtempSync(join(tmpdir(), 'npm-manifest-'));
+    try {
+      const manifest = await pacote.manifest(process.argv[1], { cache, ignoreScripts: true, offline: true });
+      process.stdout.write(JSON.stringify(manifest));
+    } finally {
+      rmSync(cache, { recursive: true, force: true });
+    }
+  `;
+  const result = run(commandRunner, process.execPath, ['--input-type=module', '-e', script, path]);
+  if (result.status !== 0) fail(`Could not read npm archive manifest from ${path}: ${commandFailure(result)}`);
   return parseJson(result.stdout, `Archive manifest in ${path}`);
 }
 
@@ -327,9 +346,9 @@ export function publishPackages({
     ]);
     if (result.status !== 0) {
       const conflict = /(?:^|\n)npm (?:error|ERR!) code E409(?:\s|$)/.test(result.stderr);
-      if (conflict) {
+      {
         const clock = new Int32Array(new SharedArrayBuffer(4));
-        for (const delay of [0, 2000, 4000, 8000, 16000]) {
+        for (const delay of conflict ? [0, 2000, 4000, 8000, 16000] : [0]) {
           if (delay) Atomics.wait(clock, 0, 0, delay);
           const view = run(commandRunner, 'npm', ['view', identity, 'dist.integrity', '--registry', NPM_REGISTRY, '--json', '--prefer-online']);
           const integrity = publishedIntegrity(view, identity);

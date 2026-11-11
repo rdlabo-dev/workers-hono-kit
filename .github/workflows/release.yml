@@ -162,7 +162,7 @@ jobs:
       github.event.comment.body == '/beta' &&
       github.run_attempt == '1') ||
       (github.event_name == 'workflow_dispatch' &&
-      github.ref_name == github.event.repository.default_branch &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
       github.actor == 'github-actions[bot]') ||
       (github.event_name == 'workflow_run' &&
       github.event.action == 'completed')
@@ -256,6 +256,7 @@ jobs:
             let event;
             let sourceKind;
             let requestedAt;
+            let lastForcePush;
 
             if (isComment) {
               let comment = context.payload.comment;
@@ -300,6 +301,29 @@ jobs:
                 core.notice('The PR must be open and ready for review.');
                 core.setOutput('allowed', 'false');
                 return;
+              }
+              if (!isDispatch && Date.parse(pullRequest.updated_at) > requestedAt) {
+                throw new Error('The PR was updated after /beta; post a fresh comment after CI passes.');
+              }
+              if (!isDispatch) {
+                const { repository } = await github.graphql(`
+                  query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        headRefOid
+                        timelineItems(last: 1, itemTypes: [HEAD_REF_FORCE_PUSHED_EVENT]) {
+                          nodes { ... on HeadRefForcePushedEvent { createdAt afterCommit { oid } } }
+                        }
+                      }
+                    }
+                  }
+                `, { owner, repo, number: Number(prNumber) });
+                const current = repository?.pullRequest;
+                if (current?.headRefOid !== pullRequest.head.sha ||
+                    current.timelineItems.nodes.some(node => Date.parse(node.createdAt) >= requestedAt)) {
+                  throw new Error('The PR head changed at or after /beta; post a fresh comment.');
+                }
+                [lastForcePush] = current.timelineItems.nodes;
               }
               if (!pullRequest.head.repo) {
                 core.setFailed('The pull request head repository is no longer available.');
@@ -423,6 +447,10 @@ jobs:
             }
 
             const candidateRun = runs.get('Package Candidate');
+            if (lastForcePush && lastForcePush.afterCommit?.oid !== headSha &&
+                Date.parse(candidateRun.created_at) <= Date.parse(lastForcePush.createdAt)) {
+              throw new Error('The candidate predates the last head rewind; post /beta after fresh CI.');
+            }
             const artifactName = `npm-candidate-${headSha}`;
             const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
               owner,
