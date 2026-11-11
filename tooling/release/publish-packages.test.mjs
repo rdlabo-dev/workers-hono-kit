@@ -71,8 +71,8 @@ function fixture({ suffix, versions = {} } = {}) {
   const calls = [];
   const runner = (command, args) => {
     calls.push([command, [...args]]);
-    if (command === 'tar') {
-      const manifest = artifactManifests.get(resolve(args[1]));
+    if (command === process.execPath) {
+      const manifest = artifactManifests.get(resolve(args.at(-1)));
       return manifest === undefined
         ? { status: 2, stdout: '', stderr: 'unknown archive' }
         : { status: 0, stdout: JSON.stringify(manifest), stderr: '' };
@@ -85,8 +85,8 @@ function fixture({ suffix, versions = {} } = {}) {
 function commandRunner(testFixture, npmHandler = () => ({ status: 1, stderr: 'npm error code E404' })) {
   return (command, args) => {
     testFixture.calls.push([command, [...args]]);
-    if (command === 'tar') {
-      const manifest = testFixture.artifactManifests.get(resolve(args[1]));
+    if (command === process.execPath) {
+      const manifest = testFixture.artifactManifests.get(resolve(args.at(-1)));
       return { status: 0, stdout: JSON.stringify(manifest), stderr: '' };
     }
     return npmHandler(command, args);
@@ -113,7 +113,7 @@ test('dry-run validates all artifacts and performs no npm network command', () =
     ],
   );
   assert.equal(state.calls.length, 3);
-  assert.ok(state.calls.every(([command, args]) => command === 'tar' && args[0] === '-xOf'));
+  assert.ok(state.calls.every(([command, args]) => command === process.execPath && args[0] === '--input-type=module'));
   assert.equal(output.length, 3);
 });
 
@@ -224,7 +224,7 @@ test('rejects a malicious artifact before any npm command', () => {
       }),
     /unexpected publish registry/,
   );
-  assert.ok(state.calls.every(([command]) => command === 'tar'));
+  assert.ok(state.calls.every(([command]) => command === process.execPath));
 
   const missingRegistry = fixture();
   delete missingRegistry.artifactManifests.get(resolve(join(missingRegistry.directory, 'mysql.tgz'))).publishConfig
@@ -258,7 +258,7 @@ test('rejects a malicious artifact before any npm command', () => {
       }),
     /More than one archive claims package name/,
   );
-  assert.ok(duplicate.calls.every(([command]) => command === 'tar'));
+  assert.ok(duplicate.calls.every(([command]) => command === process.execPath));
 });
 
 test('rejects an untrusted manifest before reading archives', () => {
@@ -499,4 +499,47 @@ test('CLI arguments enforce stable and candidate tag modes', () => {
       }),
     /requires --suffix/,
   );
+});
+
+test('a beta publish conflict succeeds only if the identical archive is visible', () => {
+  const suffix = 'beta.pr42.shaaaaaaaaaaaaa';
+  for (const matching of [true, false]) {
+    const state = fixture({ suffix });
+    let timezoneConflict = false;
+    const runner = commandRunner(state, (_command, args) => {
+      if (args[0] === 'view') {
+        if (timezoneConflict && args[1].includes('workers-timezone')) {
+          return {
+            status: 0,
+            stdout: JSON.stringify(
+              matching ? sha512Integrity(join(state.directory, 'timezone.tgz')) : 'sha512-different',
+            ),
+            stderr: '',
+          };
+        }
+        return { status: 1, stdout: '', stderr: 'npm error code E404' };
+      }
+      if (basename(args[1]) === 'timezone.tgz') {
+        timezoneConflict = true;
+        return { status: 1, stdout: '', stderr: 'npm error code E409' };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    });
+    const publish = () =>
+      publishPackages({
+        directory: state.directory,
+        manifests: state.manifests,
+        tag: 'beta',
+        suffix,
+        publish: true,
+        commandRunner: runner,
+        log() {},
+      });
+    if (matching)
+      assert.deepEqual(
+        publish().map((item) => item.action),
+        ['skip', 'published', 'published'],
+      );
+    else assert.throws(publish, /Published integrity mismatch/);
+  }
 });
