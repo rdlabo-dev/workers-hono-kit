@@ -1,12 +1,12 @@
 /**
  * Isolate-scoped async memoization for container bootstrap (secrets, env resolution, etc.).
  *
- * Successful results are reused across requests in the same isolate. Rejected initializations are
- * **not** cached so a transient failure (e.g. Secrets Manager blip) can be retried on the next call.
+ * A successful value is reused across requests in the same isolate. Concurrent cold calls run
+ * independently so pending I/O cannot outlive the Cloudflare request that created it.
  *
  * @remarks
- * The memo is not keyed by argument: the loader runs once per isolate using the arguments from the
- * first successful scheduling attempt (same semantics as hand-rolled `let promise` in Workers apps).
+ * The memo is not keyed by argument. The first successful value is retained until reset.
+ * A failed load leaves the cache unchanged.
  *
  * @packageDocumentation
  */
@@ -20,8 +20,8 @@ export interface IsolateMemo<T, TArg> {
 /**
  * Create an isolate-scoped memoized async resolver.
  *
- * @param loader - async factory invoked on the first call (and again after a rejection / {@link reset}).
- * @returns a function that returns the cached promise, plus {@link IsolateMemo.reset}.
+ * @param loader - Async factory called whenever there is no cached value.
+ * @returns A function that resolves to the memoized value, plus {@link IsolateMemo.reset}.
  * @example
  * ```ts
  * const resolveSecrets = createIsolateMemo(async (env: Env) => {
@@ -35,20 +35,21 @@ export interface IsolateMemo<T, TArg> {
  * ```
  */
 export function createIsolateMemo<T, TArg>(loader: (arg: TArg) => Promise<T>): IsolateMemo<T, TArg> {
-  let cached: Promise<T> | undefined;
+  let cache: { result?: { value: T } } = {};
 
-  const resolve = (arg: TArg): Promise<T> => {
-    if (!cached) {
-      cached = loader(arg).catch((error: unknown) => {
-        cached = undefined;
-        throw error;
-      });
+  const resolve = async (arg: TArg): Promise<T> => {
+    const entry = cache;
+    if (entry.result) {
+      return entry.result.value;
     }
-    return cached;
+
+    const value = await loader(arg);
+    entry.result ??= { value };
+    return entry.result.value;
   };
 
   resolve.reset = () => {
-    cached = undefined;
+    cache = {};
   };
 
   return resolve;
