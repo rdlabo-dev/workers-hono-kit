@@ -43,6 +43,31 @@ describe('secrets-manager (aws4fetch GetSecretValue)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does not share an in-flight fetch for the same secret across requests', async () => {
+    let finishFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => {
+      finishFirst = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce(Response.json({ SecretString: '{"ok":true}' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const opts = { accessKeyId: 'AKIA-concurrent', secretAccessKey: 'secret', region: 'ap-northeast-1' };
+
+    const first = getAuthenticationSecret(opts, 'app/concurrent');
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    await expect(getAuthenticationSecret(opts, 'app/concurrent')).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    finishFirst(Response.json({ SecretString: '{"ok":false}' }));
+    await expect(first).resolves.toEqual({ ok: true });
+    await expect(getAuthenticationSecret(opts, 'app/concurrent')).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('別の secretId は別フェッチになる（キャッシュキーに secretId を含む）', async () => {
     const fetchMock = vi.fn(
       () => new Response(JSON.stringify({ SecretString: JSON.stringify({ ok: true }) }), { status: 200 }),
@@ -74,7 +99,7 @@ describe('secrets-manager (aws4fetch GetSecretValue)', () => {
     ).rejects.toThrow('returned no SecretString');
   });
 
-  it('失敗時はキャッシュをクリアして次回 retry できる', async () => {
+  it('失敗した取得を保持せず次回 retry できる', async () => {
     const opts = { accessKeyId: 'AKIA-retry', secretAccessKey: 's', region: 'ap-northeast-1' };
     // 注: aws4fetch は 5xx レスポンスを内部 retry するため、ここでは network error（reject）で失敗させる。
     let call = 0;
@@ -88,7 +113,7 @@ describe('secrets-manager (aws4fetch GetSecretValue)', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(getAuthenticationSecret(opts, 'app/retry')).rejects.toThrow();
-    // 直前の reject でキャッシュがクリアされているので、同じキーでも再フェッチして成功する。
+    // 失敗した取得は保持されないので、同じキーでも再取得できる。
     await expect(getAuthenticationSecret(opts, 'app/retry')).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

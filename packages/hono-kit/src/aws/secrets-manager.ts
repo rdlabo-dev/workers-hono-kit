@@ -1,4 +1,6 @@
 import { AwsClient } from 'aws4fetch';
+import { createIsolateMemo } from '../container/isolate-memo.js';
+import type { IsolateMemo } from '../container/isolate-memo.js';
 
 /**
  * AWS credentials used to sign Secrets Manager requests.
@@ -22,22 +24,18 @@ export interface AwsSecretsOptions {
  * Per-isolate cache for the fetched secret.
  *
  * @remarks
- * Secrets Manager is queried at most once per isolate. The entry is keyed by
- * `region:accessKeyId:secretId`, so rotating credentials triggers a fresh fetch. The in-flight promise
- * itself is cached so that concurrent first-time callers share a single request. On rejection the cache
- * is cleared so a failed fetch can be retried.
- *
+ * The entry is keyed by region, access key ID, and secret ID. Each cold call can fetch in its
+ * own request context. Only successfully parsed values are reused.
  * @internal
  */
-let cache: { key: string; value: Promise<unknown> } | null = null;
+let cache: { key: string; load: IsolateMemo<unknown, AwsSecretsOptions> } | undefined;
 
 /**
  * Fetch and parse a secret from AWS Secrets Manager, caching the result per isolate.
  *
  * Issues a `GetSecretValue` call to Secrets Manager via a SigV4-signed `fetch` (using aws4fetch), with no
  * broad AWS SDK dependency involved. The parsed `SecretString` is cached per isolate keyed by region, access key ID, and
- * secret ID; concurrent first-time callers share one in-flight request, and a rejected fetch clears the
- * cache entry so the next call retries.
+ * secret ID. Pending requests and failed fetches are never cached.
  *
  * @typeParam T - The shape of the JSON-parsed secret payload, supplied by the caller.
  * @param options - AWS credentials and region used to sign the request.
@@ -64,13 +62,9 @@ let cache: { key: string; value: Promise<unknown> } | null = null;
 export function getAuthenticationSecret<T>(options: AwsSecretsOptions, secretId: string): Promise<T> {
   const key = `${options.region}:${options.accessKeyId}:${secretId}`;
   if (cache?.key !== key) {
-    const value = fetchSecret(options, secretId).catch((error: unknown) => {
-      cache = null;
-      throw error;
-    });
-    cache = { key, value };
+    cache = { key, load: createIsolateMemo((credentials: AwsSecretsOptions) => fetchSecret(credentials, secretId)) };
   }
-  return cache.value as Promise<T>;
+  return cache.load(options) as Promise<T>;
 }
 
 /**
